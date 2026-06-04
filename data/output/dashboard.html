@@ -1,1 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Village Economic Growth Intelligence — India Top 100</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --ink: #0F172A;
+    --ink2: #334155;
+    --muted: #64748B;
+    --border: #E2E8F0;
+    --bg: #F8FAFC;
+    --card: #FFFFFF;
+    --accent: #1D4ED8;
+    --accent2: #7C3AED;
+    --ntl: #F59E0B;
+    --build: #EF4444;
+    --road: #3B82F6;
+    --agri: #22C55E;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--ink); min-height: 100vh; }
+  
+  /* ── Header ── */
+  .header {
+    background: linear-gradient(135deg, #0F172A 0%, #1E3A5F 50%, #1E1B4B 100%);
+    color: white; padding: 2.5rem 3rem 2rem;
+    position: relative; overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+  .header-inner { position: relative; max-width: 1400px; margin: 0 auto; }
+  .header-badge {
+    display: inline-block; background: rgba(99,102,241,0.3);
+    border: 1px solid rgba(99,102,241,0.5);
+    color: #A5B4FC; font-size: 0.72rem; letter-spacing: 0.12em;
+    text-transform: uppercase; padding: 0.3rem 0.9rem; border-radius: 100px;
+    margin-bottom: 1rem;
+  }
+  .header h1 {
+    font-family: 'DM Serif Display', serif; font-size: 2.6rem; font-weight: 400;
+    line-height: 1.15; margin-bottom: 0.6rem; letter-spacing: -0.01em;
+  }
+  .header h1 em { font-style: italic; color: #93C5FD; }
+  .header p { color: #94A3B8; font-size: 1rem; max-width: 620px; line-height: 1.6; }
+  .header-meta {
+    display: flex; gap: 2rem; margin-top: 1.8rem; flex-wrap: wrap;
+  }
+  .meta-item { text-align: left; }
+  .meta-num {
+    font-family: 'DM Serif Display', serif; font-size: 2rem; color: white;
+  }
+  .meta-label { font-size: 0.75rem; color: #64748B; margin-top: 0.1rem; }
+  
+  /* ── Layout ── */
+  .container { max-width: 1400px; margin: 0 auto; padding: 2rem 2rem; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 1.5rem; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  
+  /* ── Cards ── */
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  .card-title {
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--muted); margin-bottom: 1.25rem; font-weight: 600;
+  }
+  
+  /* ── KPI row ── */
+  .kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 1.25rem; margin-bottom: 1.5rem; }
+  .kpi {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+  }
+  .kpi-val { font-family: 'DM Serif Display', serif; font-size: 2rem; color: var(--ink); }
+  .kpi-label { font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem; }
+  .kpi-change { font-size: 0.8rem; color: #22C55E; margin-top: 0.4rem; font-weight: 500; }
+  
+  /* ── Map ── */
+  #map { height: 460px; border-radius: 8px; z-index: 1; }
+  .map-legend {
+    display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1rem;
+    font-size: 0.78rem; color: var(--ink2);
+  }
+  .legend-item { display: flex; align-items: center; gap: 0.4rem; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  
+  /* ── Table ── */
+  .table-wrap { overflow-x: auto; max-height: 460px; overflow-y: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+  thead th {
+    position: sticky; top: 0; background: #F8FAFC;
+    padding: 0.75rem 1rem; text-align: left;
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted); border-bottom: 2px solid var(--border); font-weight: 600;
+  }
+  tbody tr { border-bottom: 1px solid #F1F5F9; cursor: pointer; transition: background 0.15s; }
+  tbody tr:hover { background: #F0F9FF; }
+  tbody tr.selected { background: #EFF6FF; }
+  td { padding: 0.65rem 1rem; color: var(--ink2); }
+  td:first-child { font-weight: 600; color: var(--ink); }
+  .rank-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border-radius: 50%;
+    font-size: 0.72rem; font-weight: 700;
+  }
+  .rank-gold { background: #FEF3C7; color: #92400E; }
+  .rank-silver { background: #F1F5F9; color: #475569; }
+  .rank-bronze { background: #FEF2F2; color: #991B1B; }
+  .rank-normal { background: #F0F9FF; color: #1E40AF; }
+  .driver-tag {
+    display: inline-block; padding: 0.2rem 0.55rem;
+    border-radius: 100px; font-size: 0.68rem; font-weight: 600;
+  }
+  .score-bar-wrap { display: flex; align-items: center; gap: 0.5rem; }
+  .score-bar { height: 6px; border-radius: 3px; background: var(--border); flex: 1; min-width: 60px; }
+  .score-bar-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #3B82F6, #6366F1); }
+  
+  /* ── Detail panel ── */
+  .detail-panel {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1.5rem;
+    display: none;
+  }
+  .detail-panel.visible { display: block; }
+  .detail-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; margin-top: 1rem; }
+  .detail-item label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .detail-item .val { font-size: 1.1rem; font-weight: 600; color: var(--ink); margin-top: 0.2rem; }
+  .signal-bars { display: flex; flex-direction: column; gap: 0.55rem; margin-top: 1rem; }
+  .sig-row { display: flex; align-items: center; gap: 0.75rem; }
+  .sig-label { font-size: 0.75rem; width: 160px; color: var(--ink2); flex-shrink: 0; }
+  .sig-bar { flex: 1; height: 8px; background: var(--border); border-radius: 4px; }
+  .sig-fill { height: 100%; border-radius: 4px; }
+  .sig-pct { font-size: 0.72rem; color: var(--muted); width: 38px; text-align: right; }
+  
+  /* ── Filters ── */
+  .filters {
+    display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.25rem; align-items: center;
+  }
+  .filter-btn {
+    padding: 0.35rem 0.9rem; border-radius: 100px; border: 1.5px solid var(--border);
+    background: white; font-size: 0.78rem; cursor: pointer; transition: all 0.15s;
+    font-family: inherit; color: var(--ink2); font-weight: 500;
+  }
+  .filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .filter-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+  .search-input {
+    padding: 0.4rem 0.9rem; border-radius: 8px; border: 1.5px solid var(--border);
+    font-family: inherit; font-size: 0.82rem; outline: none; color: var(--ink);
+    min-width: 200px;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  
+  @media (max-width: 900px) {
+    .grid-3, .grid-2, .kpi-row { grid-template-columns: 1fr; }
+    .header h1 { font-size: 1.8rem; }
+    .container { padding: 1rem; }
+  }
+</style>
+</head>
+<body>
 
+<header class="header">
+  <div class="header-inner">
+    <div class="header-badge">Satellite Intelligence Report · India · 2019–2024</div>
+    <h1>Village Economic Growth<br><em>Intelligence Dashboard</em></h1>
+    <p>Multi-signal composite scoring using VIIRS Nighttime Lights, NDBI built-up expansion, NDVI agricultural trends, PMGSY road connectivity and digital infrastructure data.</p>
+    <div class="header-meta">
+      <div class="meta-item"><div class="meta-num">100</div><div class="meta-label">Top ranked villages</div></div>
+      <div class="meta-item"><div class="meta-num">5,150</div><div class="meta-label">Villages analysed</div></div>
+      <div class="meta-item"><div class="meta-num">20</div><div class="meta-label">States covered</div></div>
+      <div class="meta-item"><div class="meta-num">5</div><div class="meta-label">Satellite signals</div></div>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- KPI row -->
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="kpi-val">+136%</div>
+      <div class="kpi-label">Avg. built-up area growth (top 100)</div>
+      <div class="kpi-change">↑ vs 18% national average</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val">10.1 nW</div>
+      <div class="kpi-label">Avg. NTL absolute gain (cm²/sr)</div>
+      <div class="kpi-change">↑ 7.2× national median</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val">+0.042</div>
+      <div class="kpi-label">Avg. NDVI trend (per year)</div>
+      <div class="kpi-change">↑ Sustained agri. productivity</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val">93%</div>
+      <div class="kpi-label">Road connectivity (top 100)</div>
+      <div class="kpi-change">↑ vs 58% national average</div>
+    </div>
+  </div>
+
+  <!-- Map + Charts row -->
+  <div class="grid-2" style="margin-bottom:1.5rem">
+    <div class="card" style="grid-column: span 2">
+      <div class="card-title">Geographic Distribution — Top 100 Villages</div>
+      <div id="map"></div>
+      <div class="map-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#F59E0B"></div>NTL-Led (Electrification)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#EF4444"></div>Construction Boom</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#3B82F6"></div>Road-Driven Growth</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#22C55E"></div>Agricultural Growth</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#6B21A8; width:18px; height:18px; font-size:10px; display:flex; align-items:center; justify-content:center; color:white; border-radius:50%"></div>Rank 1–10</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="grid-3" style="margin-bottom:1.5rem">
+    <div class="card">
+      <div class="card-title">State Distribution</div>
+      <canvas id="stateChart" height="220"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">Primary Growth Driver</div>
+      <canvas id="driverChart" height="220"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">NTL Growth vs Built-Up Growth</div>
+      <canvas id="scatterChart" height="220"></canvas>
+    </div>
+  </div>
+
+  <!-- Detail panel -->
+  <div id="detailPanel" class="detail-panel" style="margin-bottom:1.5rem">
+    <div id="detailContent"></div>
+  </div>
+
+  <!-- Table -->
+  <div class="card">
+    <div class="card-title">Ranked Village Registry</div>
+    <div class="filters">
+      <input id="searchBox" class="search-input" type="text" placeholder="Search state, ID or driver…">
+      <button class="filter-btn active" onclick="filterDriver('all',this)">All drivers</button>
+      <button class="filter-btn" onclick="filterDriver('NTL-Led (Electrification)',this)">⚡ NTL</button>
+      <button class="filter-btn" onclick="filterDriver('Construction Boom',this)">🏗 Built-Up</button>
+      <button class="filter-btn" onclick="filterDriver('Road-Driven',this)">🛣 Road</button>
+      <button class="filter-btn" onclick="filterDriver('Agricultural Growth',this)">🌾 Agri</button>
+    </div>
+    <div class="table-wrap">
+      <table id="villageTable">
+        <thead>
+          <tr>
+            <th>Rank</th><th>Village ID</th><th>State</th>
+            <th>Growth Score</th><th>NTL Growth</th><th>Built-Up Growth</th>
+            <th>NDVI Trend</th><th>Road</th><th>Primary Driver</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Embedded Data ──────────────────────────────────────────────────────────
+const VILLAGES = [{"rank": 1, "village_id": "HA010125", "state": "Haryana", "latitude": 30.13876, "longitude": 76.60799, "population": 2134, "growth_score": 100.0, "ntl_2019": 9.9835, "ntl_2024": 21.0269, "ntl_growth_abs": 11.0434, "ntl_growth_pct": 109.52, "ndbi_2020": -0.2247, "ndbi_2025": -0.0624, "ndbi_delta": 0.1623, "built_area_ha_2025": 115.5, "built_growth_pct": 220.08, "ndvi_2019": 0.343, "ndvi_2024": 0.5771, "ndvi_trend": 0.04683, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 13.4, "has_telecom_tower": 1, "antyodaya_score": 36.2, "ntl_norm": 1.0, "builtup_norm": 1.0, "ndvi_norm": 0.8788280539079256, "road_norm": 0.948633258032267, "digital_norm": 0.9156521739130432, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 2, "village_id": "TE030114", "state": "Telangana", "latitude": 16.67325, "longitude": 80.26339, "population": 1763, "growth_score": 99.98, "ntl_2019": 7.3983, "ntl_2024": 18.9962, "ntl_growth_abs": 11.5979, "ntl_growth_pct": 154.67, "ndbi_2020": -0.1105, "ndbi_2025": 0.0492, "ndbi_delta": 0.1597, "built_area_ha_2025": 136.3, "built_growth_pct": 107.31, "ndvi_2019": 0.3116, "ndvi_2024": 0.5768, "ndvi_trend": 0.05305, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 3.8, "has_telecom_tower": 1, "antyodaya_score": 31.0, "ntl_norm": 1.0, "builtup_norm": 0.8602852942458727, "ndvi_norm": 0.9614567627347176, "road_norm": 1.0, "digital_norm": 0.9991304347826084, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 3, "village_id": "UT130134", "state": "Uttar Pradesh", "latitude": 24.908, "longitude": 82.43959, "population": 1914, "growth_score": 99.96, "ntl_2019": 7.9399, "ntl_2024": 18.1524, "ntl_growth_abs": 10.2126, "ntl_growth_pct": 127.02, "ndbi_2020": -0.1777, "ndbi_2025": -0.0136, "ndbi_delta": 0.164, "built_area_ha_2025": 128.0, "built_growth_pct": 201.26, "ndvi_2019": 0.2962, "ndvi_2024": 0.5603, "ndvi_trend": 0.05282, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 11.3, "has_telecom_tower": 1, "antyodaya_score": 16.4, "ntl_norm": 0.933537807273468, "builtup_norm": 1.0, "ndvi_norm": 0.9584013603182928, "road_norm": 0.9602321997669164, "digital_norm": 0.9339130434782608, "primary_growth_driver": "Construction Boom"}, {"rank": 4, "village_id": "BI210215", "state": "Bihar", "latitude": 24.57249, "longitude": 83.88407, "population": 1816, "growth_score": 99.94, "ntl_2019": 6.1142, "ntl_2024": 16.3342, "ntl_growth_abs": 10.22, "ntl_growth_pct": 164.46, "ndbi_2020": -0.2195, "ndbi_2025": -0.0854, "ndbi_delta": 0.134, "built_area_ha_2025": 98.4, "built_growth_pct": 215.24, "ndvi_2019": 0.3927, "ndvi_2024": 0.6098, "ndvi_trend": 0.04341, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 4.4, "has_telecom_tower": 1, "antyodaya_score": 21.9, "ntl_norm": 0.9386841121173556, "builtup_norm": 1.0, "ndvi_norm": 0.8333955484115223, "road_norm": 0.9983430083236216, "digital_norm": 0.9939130434782608, "primary_growth_driver": "Construction Boom"}, {"rank": 5, "village_id": "BI030204", "state": "Bihar", "latitude": 24.41018, "longitude": 84.02348, "population": 1079, "growth_score": 99.92, "ntl_2019": 9.6289, "ntl_2024": 19.6985, "ntl_growth_abs": 10.0696, "ntl_growth_pct": 103.5, "ndbi_2020": 0.0194, "ndbi_2025": 0.1908, "ndbi_delta": 0.1714, "built_area_ha_2025": 136.1, "built_growth_pct": 180.77, "ndvi_2019": 0.2259, "ndvi_2024": 0.4874, "ndvi_trend": 0.0523, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 12.9, "has_telecom_tower": 1, "antyodaya_score": 33.1, "ntl_norm": 0.9178834159165212, "builtup_norm": 1.0, "ndvi_norm": 0.9514934939855062, "road_norm": 0.9513949108262312, "digital_norm": 0.92, "primary_growth_driver": "Construction Boom"}, {"rank": 6, "village_id": "HA230044", "state": "Haryana", "latitude": 29.16865, "longitude": 76.70584, "population": 3379, "growth_score": 99.9, "ntl_2019": 10.9832, "ntl_2024": 22.4755, "ntl_growth_abs": 11.4924, "ntl_growth_pct": 103.69, "ndbi_2020": -0.2956, "ndbi_2025": -0.1846, "ndbi_delta": 0.111, "built_area_ha_2025": 68.7, "built_growth_pct": 214.32, "ndvi_2019": 0.3924, "ndvi_2024": 0.6145, "ndvi_trend": 0.04441, "road_connected": 1, "road_type_label": "WBM", "dist_to_town_km": 2.6, "has_telecom_tower": 1, "antyodaya_score": 16.0, "ntl_norm": 1.0, "builtup_norm": 0.9411894192841984, "ndvi_norm": 0.846679906743804, "road_norm": 0.875725624271614, "digital_norm": 1.0, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 7, "village_id": "KA170009", "state": "Karnataka", "latitude": 16.01419, "longitude": 76.61384, "population": 1791, "growth_score": 99.88, "ntl_2019": 6.965, "ntl_2024": 17.2296, "ntl_growth_abs": 10.2646, "ntl_growth_pct": 145.29, "ndbi_2020": -0.1515, "ndbi_2025": -0.0143, "ndbi_delta": 0.1372, "built_area_ha_2025": 103.5, "built_growth_pct": 239.28, "ndvi_2019": 0.505, "ndvi_2024": 0.6951, "ndvi_trend": 0.03801, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 5.4, "has_telecom_tower": 1, "antyodaya_score": 29.8, "ntl_norm": 0.940393561597949, "builtup_norm": 1.0, "ndvi_norm": 0.7616600134172016, "road_norm": 0.9928197027356932, "digital_norm": 0.9852173913043476, "primary_growth_driver": "Construction Boom"}, {"rank": 8, "village_id": "KA130026", "state": "Karnataka", "latitude": 14.23135, "longitude": 74.22476, "population": 1711, "growth_score": 99.86, "ntl_2019": 10.0071, "ntl_2024": 20.0624, "ntl_growth_abs": 10.0552, "ntl_growth_pct": 99.49, "ndbi_2020": -0.009, "ndbi_2025": 0.1646, "ndbi_delta": 0.1737, "built_area_ha_2025": 150.8, "built_growth_pct": 195.49, "ndvi_2019": 0.2841, "ndvi_2024": 0.5493, "ndvi_trend": 0.05304, "road_connected": 1, "road_type_label": "WBM", "dist_to_town_km": 7.4, "has_telecom_tower": 1, "antyodaya_score": 23.2, "ntl_norm": 0.9161105204818162, "builtup_norm": 1.0, "ndvi_norm": 0.9613239191513948, "road_norm": 0.8492137574495585, "digital_norm": 0.9678260869565216, "primary_growth_driver": "Construction Boom"}, {"rank": 9, "village_id": "UT050241", "state": "Uttar Pradesh", "latitude": 30.21413, "longitude": 78.63199, "population": 955, "growth_score": 99.84, "ntl_2019": 6.9582, "ntl_2024": 18.4589, "ntl_growth_abs": 11.5007, "ntl_growth_pct": 162.94, "ndbi_2020": -0.2103, "ndbi_2025": -0.0839, "ndbi_delta": 0.1264, "built_area_ha_2025": 117.9, "built_growth_pct": 344.57, "ndvi_2019": 0.271, "ndvi_2024": 0.4147, "ndvi_trend": 0.02875, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 6.6, "has_telecom_tower": 1, "antyodaya_score": 44.3, "ntl_norm": 1.0, "builtup_norm": 1.0, "ndvi_norm": 0.6386468552602735, "road_norm": 0.9861917360301792, "digital_norm": 0.974782608695652, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 10, "village_id": "GU020282", "state": "Gujarat", "latitude": 22.20157, "longitude": 68.63014, "population": 594, "growth_score": 99.83, "ntl_2019": 9.2507, "ntl_2024": 19.4219, "ntl_growth_abs": 10.1711, "ntl_growth_pct": 108.77, "ndbi_2020": -0.1384, "ndbi_2025": -0.0132, "ndbi_delta": 0.1252, "built_area_ha_2025": 110.7, "built_growth_pct": 297.25, "ndvi_2019": 0.3516, "ndvi_2024": 0.5379, "ndvi_trend": 0.03727, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 5.0, "has_telecom_tower": 1, "antyodaya_score": 16.8, "ntl_norm": 0.9276271582465564, "builtup_norm": 1.0, "ndvi_norm": 0.7518295882513131, "road_norm": 0.9950290249708644, "digital_norm": 0.9886956521739128, "primary_growth_driver": "Construction Boom"}, {"rank": 11, "village_id": "WE020137", "state": "West Bengal", "latitude": 25.27181, "longitude": 89.73097, "population": 2556, "growth_score": 99.81, "ntl_2019": 7.2313, "ntl_2024": 16.1986, "ntl_growth_abs": 8.9673, "ntl_growth_pct": 122.31, "ndbi_2020": -0.2742, "ndbi_2025": -0.1715, "ndbi_delta": 0.1027, "built_area_ha_2025": 105.1, "built_growth_pct": 254.29, "ndvi_2019": 0.3419, "ndvi_2024": 0.6078, "ndvi_trend": 0.05317, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 5.8, "has_telecom_tower": 1, "antyodaya_score": 31.2, "ntl_norm": 0.821168438527612, "builtup_norm": 1.0, "ndvi_norm": 0.9630508857345914, "road_norm": 0.9906103805005216, "digital_norm": 0.9817391304347824, "primary_growth_driver": "Construction Boom"}, {"rank": 12, "village_id": "MA230264", "state": "Madhya Pradesh", "latitude": 22.40021, "longitude": 74.25679, "population": 1459, "growth_score": 99.79, "ntl_2019": 8.2918, "ntl_2024": 19.7066, "ntl_growth_abs": 11.4147, "ntl_growth_pct": 136.02, "ndbi_2020": -0.09, "ndbi_2025": 0.0777, "ndbi_delta": 0.1676, "built_area_ha_2025": 146.3, "built_growth_pct": 68.12, "ndvi_2019": 0.4766, "ndvi_2024": 0.7593, "ndvi_trend": 0.05655, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 9.6, "has_telecom_tower": 1, "antyodaya_score": 43.0, "ntl_norm": 1.0, "builtup_norm": 0.795152232451178, "ndvi_norm": 1.0, "road_norm": 0.9696218192663946, "digital_norm": 0.9486956521739128, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 13, "village_id": "TA070009", "state": "Tamil Nadu", "latitude": 12.91656, "longitude": 78.16412, "population": 675, "growth_score": 99.77, "ntl_2019": 9.4904, "ntl_2024": 20.3711, "ntl_growth_abs": 10.8807, "ntl_growth_pct": 113.45, "ndbi_2020": -0.1437, "ndbi_2025": -0.0227, "ndbi_delta": 0.121, "built_area_ha_2025": 105.0, "built_growth_pct": 267.75, "ndvi_2019": 0.5961, "ndvi_2024": 0.7137, "ndvi_trend": 0.02353, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 4.1, "has_telecom_tower": 1, "antyodaya_score": 32.4, "ntl_norm": 0.9918967126681943, "builtup_norm": 1.0, "ndvi_norm": 0.5693025047657633, "road_norm": 1.0, "digital_norm": 0.9965217391304344, "primary_growth_driver": "Construction Boom"}, {"rank": 14, "village_id": "RA290116", "state": "Rajasthan", "latitude": 26.10181, "longitude": 71.93889, "population": 2246, "growth_score": 99.75, "ntl_2019": 6.9442, "ntl_2024": 16.2265, "ntl_growth_abs": 9.2823, "ntl_growth_pct": 131.77, "ndbi_2020": 0.0109, "ndbi_2025": 0.136, "ndbi_delta": 0.1251, "built_area_ha_2025": 129.0, "built_growth_pct": 202.86, "ndvi_2019": 0.4239, "ndvi_2024": 0.6935, "ndvi_trend": 0.05393, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 9.2, "has_telecom_tower": 1, "antyodaya_score": 23.4, "ntl_norm": 0.8505822222724725, "builtup_norm": 0.9642742535486676, "ndvi_norm": 0.9731469980671256, "road_norm": 0.9718311415015656, "digital_norm": 0.952173913043478, "primary_growth_driver": "Agricultural Growth"}, {"rank": 15, "village_id": "UT280488", "state": "Uttar Pradesh", "latitude": 24.83301, "longitude": 83.12359, "population": 1949, "growth_score": 99.73, "ntl_2019": 10.3237, "ntl_2024": 22.0203, "ntl_growth_abs": 11.6966, "ntl_growth_pct": 112.21, "ndbi_2020": -0.1574, "ndbi_2025": 0.0135, "ndbi_delta": 0.1709, "built_area_ha_2025": 168.9, "built_growth_pct": 132.77, "ndvi_2019": 0.5815, "ndvi_2024": 0.7543, "ndvi_trend": 0.03457, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 15.0, "has_telecom_tower": 1, "antyodaya_score": 14.0, "ntl_norm": 1.0, "builtup_norm": 0.9609628067346728, "ndvi_norm": 0.7159618207541526, "road_norm": 0.9397959690915818, "digital_norm": 0.9017391304347824, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 16, "village_id": "CH090026", "state": "Chhattisgarh", "latitude": 18.60789, "longitude": 82.85764, "population": 4957, "growth_score": 99.71, "ntl_2019": 10.5865, "ntl_2024": 20.8849, "ntl_growth_abs": 10.2984, "ntl_growth_pct": 96.37, "ndbi_2020": 0.0244, "ndbi_2025": 0.1837, "ndbi_delta": 0.1592, "built_area_ha_2025": 168.5, "built_growth_pct": 175.89, "ndvi_2019": 0.3395, "ndvi_2024": 0.5185, "ndvi_trend": 0.0358, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 12.6, "has_telecom_tower": 1, "antyodaya_score": 43.2, "ntl_norm": 0.9375720122801908, "builtup_norm": 1.0, "ndvi_norm": 0.7323015815028591, "road_norm": 0.9530519025026096, "digital_norm": 0.9226086956521736, "primary_growth_driver": "Construction Boom"}, {"rank": 17, "village_id": "PU220011", "state": "Punjab", "latitude": 29.92871, "longitude": 74.66094, "population": 2826, "growth_score": 99.69, "ntl_2019": 6.2128, "ntl_2024": 15.7315, "ntl_growth_abs": 9.5187, "ntl_growth_pct": 150.79, "ndbi_2020": -0.1152, "ndbi_2025": 0.0419, "ndbi_delta": 0.1571, "built_area_ha_2025": 92.6, "built_growth_pct": 192.46, "ndvi_2019": 0.3046, "ndvi_2024": 0.5141, "ndvi_trend": 0.0419, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 9.6, "has_telecom_tower": 1, "antyodaya_score": 40.9, "ntl_norm": 0.8740835613502104, "builtup_norm": 1.0, "ndvi_norm": 0.8133361673297772, "road_norm": 0.9696218192663946, "digital_norm": 0.9486956521739128, "primary_growth_driver": "Construction Boom"}, {"rank": 18, "village_id": "TA140225", "state": "Tamil Nadu", "latitude": 11.76987, "longitude": 79.50294, "population": 2218, "growth_score": 99.67, "ntl_2019": 10.3482, "ntl_2024": 19.0958, "ntl_growth_abs": 8.7475, "ntl_growth_pct": 83.72, "ndbi_2020": 0.0684, "ndbi_2025": 0.2344, "ndbi_delta": 0.166, "built_area_ha_2025": 169.4, "built_growth_pct": 188.15, "ndvi_2019": 0.3791, "ndvi_2024": 0.6416, "ndvi_trend": 0.05249, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 8.8, "has_telecom_tower": 1, "antyodaya_score": 35.8, "ntl_norm": 0.796814768896525, "builtup_norm": 1.0, "ndvi_norm": 0.9540175220686398, "road_norm": 0.974040463736737, "digital_norm": 0.9556521739130432, "primary_growth_driver": "Construction Boom"}, {"rank": 19, "village_id": "WE130135", "state": "West Bengal", "latitude": 24.07165, "longitude": 87.53793, "population": 1443, "growth_score": 99.65, "ntl_2019": 7.0745, "ntl_2024": 18.6609, "ntl_growth_abs": 11.5864, "ntl_growth_pct": 161.49, "ndbi_2020": -0.2634, "ndbi_2025": -0.1105, "ndbi_delta": 0.153, "built_area_ha_2025": 74.9, "built_growth_pct": 230.48, "ndvi_2019": 0.2831, "ndvi_2024": 0.4284, "ndvi_trend": 0.02904, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 15.7, "has_telecom_tower": 1, "antyodaya_score": 27.7, "ntl_norm": 1.0, "builtup_norm": 1.0, "ndvi_norm": 0.6424993191766352, "road_norm": 0.935929655180032, "digital_norm": 0.8956521739130433, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 20, "village_id": "UT220074", "state": "Uttarakhand", "latitude": 29.13037, "longitude": 78.86676, "population": 4856, "growth_score": 99.63, "ntl_2019": 6.9983, "ntl_2024": 17.742, "ntl_growth_abs": 10.7437, "ntl_growth_pct": 151.36, "ndbi_2020": -0.0943, "ndbi_2025": 0.0495, "ndbi_delta": 0.1438, "built_area_ha_2025": 151.3, "built_growth_pct": 77.87, "ndvi_2019": 0.4037, "ndvi_2024": 0.6892, "ndvi_trend": 0.05711, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 8.4, "has_telecom_tower": 1, "antyodaya_score": 21.1, "ntl_norm": 0.9841347585840434, "builtup_norm": 0.7333306174704786, "ndvi_norm": 1.0, "road_norm": 0.9762497859719084, "digital_norm": 0.9591304347826084, "primary_growth_driver": "Agricultural Growth"}, {"rank": 21, "village_id": "TA050133", "state": "Tamil Nadu", "latitude": 9.33662, "longitude": 78.01959, "population": 676, "growth_score": 99.61, "ntl_2019": 10.8201, "ntl_2024": 22.2877, "ntl_growth_abs": 11.4677, "ntl_growth_pct": 105.01, "ndbi_2020": -0.2397, "ndbi_2025": -0.1187, "ndbi_delta": 0.121, "built_area_ha_2025": 112.8, "built_growth_pct": 274.72, "ndvi_2019": 0.3303, "ndvi_2024": 0.458, "ndvi_trend": 0.02554, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 14.5, "has_telecom_tower": 1, "antyodaya_score": 26.3, "ntl_norm": 1.0, "builtup_norm": 1.0, "ndvi_norm": 0.5960040650136493, "road_norm": 0.942557621885546, "digital_norm": 0.906086956521739, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 22, "village_id": "AN150117", "state": "Andhra Pradesh", "latitude": 17.99444, "longitude": 79.41675, "population": 961, "growth_score": 99.59, "ntl_2019": 6.4359, "ntl_2024": 15.956, "ntl_growth_abs": 9.5201, "ntl_growth_pct": 145.66, "ndbi_2020": -0.19, "ndbi_2025": -0.0251, "ndbi_delta": 0.1649, "built_area_ha_2025": 137.4, "built_growth_pct": 210.54, "ndvi_2019": 0.3195, "ndvi_2024": 0.5076, "ndvi_trend": 0.03763, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 8.3, "has_telecom_tower": 1, "antyodaya_score": 31.5, "ntl_norm": 0.8735951472128979, "builtup_norm": 1.0, "ndvi_norm": 0.7566119572509344, "road_norm": 0.9768021165307011, "digital_norm": 0.96, "primary_growth_driver": "Construction Boom"}, {"rank": 23, "village_id": "BI160247", "state": "Bihar", "latitude": 26.85476, "longitude": 85.00197, "population": 798, "growth_score": 99.57, "ntl_2019": 6.3076, "ntl_2024": 16.9568, "ntl_growth_abs": 10.6492, "ntl_growth_pct": 166.2, "ndbi_2020": -0.2625, "ndbi_2025": -0.1594, "ndbi_delta": 0.1031, "built_area_ha_2025": 93.7, "built_growth_pct": 153.1, "ndvi_2019": 0.5381, "ndvi_2024": 0.8182, "ndvi_trend": 0.05602, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 13.0, "has_telecom_tower": 1, "antyodaya_score": 29.3, "ntl_norm": 0.9774268453035776, "builtup_norm": 0.7671121396449033, "ndvi_norm": 1.0, "road_norm": 0.9508425802674384, "digital_norm": 0.9191304347826084, "primary_growth_driver": "Agricultural Growth"}, {"rank": 24, "village_id": "UT210540", "state": "Uttar Pradesh", "latitude": 27.06319, "longitude": 77.01391, "population": 1080, "growth_score": 99.55, "ntl_2019": 9.2494, "ntl_2024": 21.0618, "ntl_growth_abs": 11.8124, "ntl_growth_pct": 126.34, "ndbi_2020": -0.1591, "ndbi_2025": 0.0044, "ndbi_delta": 0.1635, "built_area_ha_2025": 141.5, "built_growth_pct": 103.13, "ndvi_2019": 0.2564, "ndvi_2024": 0.413, "ndvi_trend": 0.03132, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 6.0, "has_telecom_tower": 1, "antyodaya_score": 21.3, "ntl_norm": 1.0, "builtup_norm": 0.8639064447187307, "ndvi_norm": 0.6727876561742374, "road_norm": 0.9895057193829362, "digital_norm": 0.9799999999999998, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 25, "village_id": "RA070396", "state": "Rajasthan", "latitude": 27.7019, "longitude": 71.52535, "population": 593, "growth_score": 99.53, "ntl_2019": 9.1626, "ntl_2024": 21.0614, "ntl_growth_abs": 11.8988, "ntl_growth_pct": 128.46, "ndbi_2020": 0.0688, "ndbi_2025": 0.2246, "ndbi_delta": 0.1559, "built_area_ha_2025": 220.9, "built_growth_pct": 50.63, "ndvi_2019": 0.2179, "ndvi_2024": 0.4812, "ndvi_trend": 0.05266, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 8.2, "has_telecom_tower": 1, "antyodaya_score": 19.0, "ntl_norm": 1.0, "builtup_norm": 0.7116751847084531, "ndvi_norm": 0.9562758629851278, "road_norm": 0.977354447089494, "digital_norm": 0.9608695652173912, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 26, "village_id": "AN190013", "state": "Andhra Pradesh", "latitude": 18.97301, "longitude": 78.29047, "population": 5759, "growth_score": 99.51, "ntl_2019": 9.6892, "ntl_2024": 20.1116, "ntl_growth_abs": 10.4224, "ntl_growth_pct": 106.47, "ndbi_2020": -0.2387, "ndbi_2025": -0.103, "ndbi_delta": 0.1357, "built_area_ha_2025": 117.7, "built_growth_pct": 191.93, "ndvi_2019": 0.6507, "ndvi_2024": 0.7743, "ndvi_trend": 0.02472, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 8.1, "has_telecom_tower": 1, "antyodaya_score": 18.2, "ntl_norm": 0.9499140459951192, "builtup_norm": 0.9761144626605784, "ndvi_norm": 0.5851108911811784, "road_norm": 0.977906777648287, "digital_norm": 0.9617391304347824, "primary_growth_driver": "Road-Driven"}, {"rank": 27, "village_id": "TE200158", "state": "Telangana", "latitude": 17.36483, "longitude": 79.78912, "population": 3048, "growth_score": 99.5, "ntl_2019": 8.3982, "ntl_2024": 18.2107, "ntl_growth_abs": 9.8125, "ntl_growth_pct": 115.47, "ndbi_2020": -0.2139, "ndbi_2025": -0.0341, "ndbi_delta": 0.1798, "built_area_ha_2025": 147.3, "built_growth_pct": 157.76, "ndvi_2019": 0.6035, "ndvi_2024": 0.7985, "ndvi_trend": 0.039, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 17.1, "has_telecom_tower": 1, "antyodaya_score": 22.5, "ntl_norm": 0.8962333818960228, "builtup_norm": 1.0, "ndvi_norm": 0.7748115281661603, "road_norm": 0.9281970273569324, "digital_norm": 0.8834782608695649, "primary_growth_driver": "Construction Boom"}, {"rank": 28, "village_id": "GU040288", "state": "Gujarat", "latitude": 24.38144, "longitude": 68.20974, "population": 2906, "growth_score": 99.48, "ntl_2019": 8.3674, "ntl_2024": 17.8246, "ntl_growth_abs": 9.4573, "ntl_growth_pct": 111.69, "ndbi_2020": -0.1093, "ndbi_2025": 0.0685, "ndbi_delta": 0.1779, "built_area_ha_2025": 213.8, "built_growth_pct": 130.85, "ndvi_2019": 0.646, "ndvi_2024": 0.9, "ndvi_trend": 0.05627, "road_connected": 1, "road_type_label": "WBM", "dist_to_town_km": 17.7, "has_telecom_tower": 1, "antyodaya_score": 31.6, "ntl_norm": 0.8638903104207617, "builtup_norm": 0.9814032482196208, "ndvi_norm": 1.0, "road_norm": 0.7923237098938973, "digital_norm": 0.8782608695652172, "primary_growth_driver": "Agricultural Growth"}, {"rank": 29, "village_id": "WE040021", "state": "West Bengal", "latitude": 26.60119, "longitude": 88.91749, "population": 1220, "growth_score": 99.46, "ntl_2019": 9.6566, "ntl_2024": 21.1041, "ntl_growth_abs": 11.4475, "ntl_growth_pct": 117.33, "ndbi_2020": -0.1303, "ndbi_2025": 0.0271, "ndbi_delta": 0.1574, "built_area_ha_2025": 166.4, "built_growth_pct": 86.22, "ndvi_2019": 0.3195, "ndvi_2024": 0.5432, "ndvi_trend": 0.04474, "road_connected": 1, "road_type_label": "WBM", "dist_to_town_km": 6.7, "has_telecom_tower": 1, "antyodaya_score": 10.3, "ntl_norm": 1.0, "builtup_norm": 0.8018227727959164, "ndvi_norm": 0.851063744993457, "road_norm": 0.8530800713611082, "digital_norm": 0.9739130434782606, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 30, "village_id": "AN200054", "state": "Andhra Pradesh", "latitude": 14.58948, "longitude": 78.36206, "population": 4297, "growth_score": 99.44, "ntl_2019": 6.3372, "ntl_2024": 16.8549, "ntl_growth_abs": 10.5177, "ntl_growth_pct": 163.39, "ndbi_2020": 0.0272, "ndbi_2025": 0.2045, "ndbi_delta": 0.1774, "built_area_ha_2025": 247.7, "built_growth_pct": 61.7, "ndvi_2019": 0.5638, "ndvi_2024": 0.7298, "ndvi_trend": 0.0332, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 3.5, "has_telecom_tower": 1, "antyodaya_score": 17.8, "ntl_norm": 0.9652841276520372, "builtup_norm": 0.8148779731849042, "ndvi_norm": 0.6977622498389269, "road_norm": 1.0, "digital_norm": 1.0, "primary_growth_driver": "Road-Driven"}, {"rank": 31, "village_id": "TA070242", "state": "Tamil Nadu", "latitude": 10.24696, "longitude": 79.53184, "population": 2022, "growth_score": 99.42, "ntl_2019": 8.7796, "ntl_2024": 19.3383, "ntl_growth_abs": 10.5587, "ntl_growth_pct": 118.91, "ndbi_2020": 0.1642, "ndbi_2025": 0.3051, "ndbi_delta": 0.141, "built_area_ha_2025": 104.0, "built_growth_pct": 80.16, "ndvi_2019": 0.6429, "ndvi_2024": 0.8613, "ndvi_trend": 0.04368, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 3.1, "has_telecom_tower": 1, "antyodaya_score": 40.8, "ntl_norm": 0.9636405183125032, "builtup_norm": 0.7287803560210321, "ndvi_norm": 0.8369823251612385, "road_norm": 1.0, "digital_norm": 1.0, "primary_growth_driver": "Road-Driven"}, {"rank": 32, "village_id": "TA240180", "state": "Tamil Nadu", "latitude": 12.88388, "longitude": 76.88953, "population": 2488, "growth_score": 99.4, "ntl_2019": 9.0695, "ntl_2024": 18.6875, "ntl_growth_abs": 9.618, "ntl_growth_pct": 104.89, "ndbi_2020": -0.2723, "ndbi_2025": -0.0953, "ndbi_delta": 0.177, "built_area_ha_2025": 103.4, "built_growth_pct": 170.11, "ndvi_2019": 0.6356, "ndvi_2024": 0.7889, "ndvi_trend": 0.03066, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 11.4, "has_telecom_tower": 1, "antyodaya_score": 11.5, "ntl_norm": 0.877504255951608, "builtup_norm": 1.0, "ndvi_norm": 0.6640199796749314, "road_norm": 0.9596798692081236, "digital_norm": 0.9330434782608694, "primary_growth_driver": "Construction Boom"}, {"rank": 33, "village_id": "UT060064", "state": "Uttarakhand", "latitude": 29.6447, "longitude": 79.00914, "population": 1819, "growth_score": 99.38, "ntl_2019": 6.9404, "ntl_2024": 16.7191, "ntl_growth_abs": 9.7788, "ntl_growth_pct": 138.9, "ndbi_2020": 0.1135, "ndbi_2025": 0.2817, "ndbi_delta": 0.1681, "built_area_ha_2025": 148.2, "built_growth_pct": 95.27, "ndvi_2019": 0.4826, "ndvi_2024": 0.6755, "ndvi_trend": 0.03859, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 5.7, "has_telecom_tower": 1, "antyodaya_score": 41.3, "ntl_norm": 0.8960125181501056, "builtup_norm": 0.8616194023148203, "ndvi_norm": 0.7693649412499248, "road_norm": 0.9911627110593147, "digital_norm": 0.9826086956521736, "primary_growth_driver": "Road-Driven"}, {"rank": 34, "village_id": "KA280025", "state": "Karnataka", "latitude": 16.10926, "longitude": 76.70878, "population": 3155, "growth_score": 99.36, "ntl_2019": 9.8342, "ntl_2024": 20.7318, "ntl_growth_abs": 10.8976, "ntl_growth_pct": 109.7, "ndbi_2020": 0.0358, "ndbi_2025": 0.2079, "ndbi_delta": 0.1721, "built_area_ha_2025": 205.5, "built_growth_pct": 118.22, "ndvi_2019": 0.6699, "ndvi_2024": 0.7871, "ndvi_trend": 0.02345, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 14.1, "has_telecom_tower": 1, "antyodaya_score": 41.7, "ntl_norm": 0.9929651185935654, "builtup_norm": 0.9305880248077394, "ndvi_norm": 0.5682397560991808, "road_norm": 0.9447669441207174, "digital_norm": 0.9095652173913042, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 35, "village_id": "JH140113", "state": "Jharkhand", "latitude": 23.92844, "longitude": 83.90248, "population": 1623, "growth_score": 99.34, "ntl_2019": 6.8227, "ntl_2024": 17.4003, "ntl_growth_abs": 10.5776, "ntl_growth_pct": 152.8, "ndbi_2020": -0.2464, "ndbi_2025": -0.0821, "ndbi_delta": 0.1643, "built_area_ha_2025": 131.4, "built_growth_pct": 118.17, "ndvi_2019": 0.6724, "ndvi_2024": 0.8399, "ndvi_trend": 0.03349, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 17.9, "has_telecom_tower": 1, "antyodaya_score": 39.1, "ntl_norm": 0.9693943480943464, "builtup_norm": 0.9025955787182128, "ndvi_norm": 0.7016147137552884, "road_norm": 0.92377838288659, "digital_norm": 0.8765217391304346, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 36, "village_id": "PU260001", "state": "Punjab", "latitude": 30.13674, "longitude": 74.99732, "population": 1079, "growth_score": 99.32, "ntl_2019": 8.009, "ntl_2024": 17.9721, "ntl_growth_abs": 9.9632, "ntl_growth_pct": 122.87, "ndbi_2020": -0.1901, "ndbi_2025": -0.0555, "ndbi_delta": 0.1347, "built_area_ha_2025": 166.4, "built_growth_pct": 113.64, "ndvi_2019": 0.6622, "ndvi_2024": 0.9, "ndvi_trend": 0.0588, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 17.2, "has_telecom_tower": 1, "antyodaya_score": 34.0, "ntl_norm": 0.9106493800543184, "builtup_norm": 0.786027886193911, "ndvi_norm": 1.0, "road_norm": 0.9276446967981395, "digital_norm": 0.8826086956521738, "primary_growth_driver": "Agricultural Growth"}, {"rank": 37, "village_id": "CH040014", "state": "Chhattisgarh", "latitude": 21.37153, "longitude": 82.99202, "population": 1757, "growth_score": 99.3, "ntl_2019": 8.0582, "ntl_2024": 17.2353, "ntl_growth_abs": 9.177, "ntl_growth_pct": 112.49, "ndbi_2020": -0.2562, "ndbi_2025": -0.1344, "ndbi_delta": 0.1219, "built_area_ha_2025": 97.8, "built_growth_pct": 365.47, "ndvi_2019": 0.3965, "ndvi_2024": 0.5762, "ndvi_trend": 0.03596, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 14.2, "has_telecom_tower": 1, "antyodaya_score": 31.4, "ntl_norm": 0.8388201803456022, "builtup_norm": 1.0, "ndvi_norm": 0.7344270788360241, "road_norm": 0.9442146135619244, "digital_norm": 0.9086956521739128, "primary_growth_driver": "Construction Boom"}, {"rank": 38, "village_id": "HA240074", "state": "Haryana", "latitude": 30.1435, "longitude": 77.08634, "population": 5962, "growth_score": 99.28, "ntl_2019": 9.3778, "ntl_2024": 20.0793, "ntl_growth_abs": 10.7015, "ntl_growth_pct": 112.91, "ndbi_2020": -0.1654, "ndbi_2025": -0.0466, "ndbi_delta": 0.1187, "built_area_ha_2025": 148.7, "built_growth_pct": 87.94, "ndvi_2019": 0.4431, "ndvi_2024": 0.725, "ndvi_trend": 0.05637, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 13.8, "has_telecom_tower": 1, "antyodaya_score": 28.2, "ntl_norm": 0.9757431333326708, "builtup_norm": 0.6676257950748063, "ndvi_norm": 1.0, "road_norm": 0.9464239357970958, "digital_norm": 0.912173913043478, "primary_growth_driver": "Agricultural Growth"}, {"rank": 39, "village_id": "UT090661", "state": "Uttar Pradesh", "latitude": 28.55101, "longitude": 84.33996, "population": 2580, "growth_score": 99.26, "ntl_2019": 9.0643, "ntl_2024": 20.184, "ntl_growth_abs": 11.1198, "ntl_growth_pct": 121.34, "ndbi_2020": -0.1835, "ndbi_2025": -0.0797, "ndbi_delta": 0.1038, "built_area_ha_2025": 145.7, "built_growth_pct": 94.07, "ndvi_2019": 0.2913, "ndvi_2024": 0.5874, "ndvi_trend": 0.05922, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 12.8, "has_telecom_tower": 1, "antyodaya_score": 30.9, "ntl_norm": 1.0, "builtup_norm": 0.6289843077920725, "ndvi_norm": 1.0, "road_norm": 0.951947241385024, "digital_norm": 0.920869565217391, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 40, "village_id": "RA180183", "state": "Rajasthan", "latitude": 23.72923, "longitude": 69.5795, "population": 885, "growth_score": 99.24, "ntl_2019": 10.1803, "ntl_2024": 20.3338, "ntl_growth_abs": 10.1534, "ntl_growth_pct": 98.77, "ndbi_2020": 0.1819, "ndbi_2025": 0.338, "ndbi_delta": 0.1561, "built_area_ha_2025": 207.7, "built_growth_pct": 77.71, "ndvi_2019": 0.5817, "ndvi_2024": 0.8228, "ndvi_trend": 0.04822, "road_connected": 1, "road_type_label": "WBM", "dist_to_town_km": 2.5, "has_telecom_tower": 1, "antyodaya_score": 10.6, "ntl_norm": 0.9248409231862756, "builtup_norm": 0.776903539936644, "ndvi_norm": 0.8972933119897972, "road_norm": 0.8762779548304069, "digital_norm": 1.0, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 41, "village_id": "MA100114", "state": "Madhya Pradesh", "latitude": 25.36093, "longitude": 77.70371, "population": 3140, "growth_score": 99.22, "ntl_2019": 9.0476, "ntl_2024": 19.3877, "ntl_growth_abs": 10.3402, "ntl_growth_pct": 113.04, "ndbi_2020": -0.2831, "ndbi_2025": -0.1802, "ndbi_delta": 0.1028, "built_area_ha_2025": 53.4, "built_growth_pct": 90.64, "ndvi_2019": 0.5316, "ndvi_2024": 0.826, "ndvi_trend": 0.05889, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 2.6, "has_telecom_tower": 1, "antyodaya_score": 28.7, "ntl_norm": 0.9433204551414018, "builtup_norm": 0.6172393921136583, "ndvi_norm": 1.0, "road_norm": 1.0, "digital_norm": 1.0, "primary_growth_driver": "Agricultural Growth"}, {"rank": 42, "village_id": "TE210186", "state": "Telangana", "latitude": 16.03535, "longitude": 77.61038, "population": 1173, "growth_score": 99.2, "ntl_2019": 7.1146, "ntl_2024": 16.502, "ntl_growth_abs": 9.3874, "ntl_growth_pct": 130.12, "ndbi_2020": -0.2884, "ndbi_2025": -0.1315, "ndbi_delta": 0.1569, "built_area_ha_2025": 123.4, "built_growth_pct": 344.77, "ndvi_2019": 0.6432, "ndvi_2024": 0.8046, "ndvi_trend": 0.03227, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 14.9, "has_telecom_tower": 1, "antyodaya_score": 14.1, "ntl_norm": 0.8598207911565618, "builtup_norm": 1.0, "ndvi_norm": 0.6854077965899048, "road_norm": 0.9403482996503748, "digital_norm": 0.9026086956521736, "primary_growth_driver": "Construction Boom"}, {"rank": 43, "village_id": "AN010198", "state": "Andhra Pradesh", "latitude": 12.74169, "longitude": 83.69409, "population": 2879, "growth_score": 99.18, "ntl_2019": 10.5678, "ntl_2024": 19.584, "ntl_growth_abs": 9.0162, "ntl_growth_pct": 84.52, "ndbi_2020": -0.1722, "ndbi_2025": -0.0048, "ndbi_delta": 0.1674, "built_area_ha_2025": 147.5, "built_growth_pct": 180.88, "ndvi_2019": 0.575, "ndvi_2024": 0.7759, "ndvi_trend": 0.04018, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 17.0, "has_telecom_tower": 1, "antyodaya_score": 35.6, "ntl_norm": 0.8210349626052827, "builtup_norm": 1.0, "ndvi_norm": 0.7904870709982528, "road_norm": 0.9287493579157252, "digital_norm": 0.8843478260869564, "primary_growth_driver": "Construction Boom"}, {"rank": 44, "village_id": "TA230184", "state": "Tamil Nadu", "latitude": 10.12661, "longitude": 79.87351, "population": 2358, "growth_score": 99.17, "ntl_2019": 9.5614, "ntl_2024": 17.0424, "ntl_growth_abs": 7.4809, "ntl_growth_pct": 77.43, "ndbi_2020": -0.0635, "ndbi_2025": 0.0945, "ndbi_delta": 0.158, "built_area_ha_2025": 146.0, "built_growth_pct": 260.13, "ndvi_2019": 0.4756, "ndvi_2024": 0.7352, "ndvi_trend": 0.05191, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 8.5, "has_telecom_tower": 1, "antyodaya_score": 38.7, "ntl_norm": 0.6823439025574044, "builtup_norm": 1.0, "ndvi_norm": 0.9463125942359164, "road_norm": 0.9756974554131156, "digital_norm": 0.9582608695652172, "primary_growth_driver": "Construction Boom"}, {"rank": 45, "village_id": "MA250235", "state": "Madhya Pradesh", "latitude": 22.67076, "longitude": 78.29103, "population": 559, "growth_score": 99.15, "ntl_2019": 7.9641, "ntl_2024": 17.7088, "ntl_growth_abs": 9.7447, "ntl_growth_pct": 120.84, "ndbi_2020": 0.1785, "ndbi_2025": 0.3371, "ndbi_delta": 0.1586, "built_area_ha_2025": 225.2, "built_growth_pct": 81.68, "ndvi_2019": 0.3197, "ndvi_2024": 0.6018, "ndvi_trend": 0.05643, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 17.7, "has_telecom_tower": 1, "antyodaya_score": 24.7, "ntl_norm": 0.890789000777158, "builtup_norm": 0.7952951726014225, "ndvi_norm": 1.0, "road_norm": 0.9248830440041756, "digital_norm": 0.8782608695652172, "primary_growth_driver": "Agricultural Growth"}, {"rank": 46, "village_id": "MA160363", "state": "Madhya Pradesh", "latitude": 23.20198, "longitude": 75.00229, "population": 6086, "growth_score": 99.13, "ntl_2019": 6.2066, "ntl_2024": 16.3241, "ntl_growth_abs": 10.1175, "ntl_growth_pct": 160.43, "ndbi_2020": -0.0044, "ndbi_2025": 0.1244, "ndbi_delta": 0.1288, "built_area_ha_2025": 164.0, "built_growth_pct": 105.92, "ndvi_2019": 0.3523, "ndvi_2024": 0.6027, "ndvi_trend": 0.05008, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 11.9, "has_telecom_tower": 1, "antyodaya_score": 29.1, "ntl_norm": 0.9289990273675368, "builtup_norm": 0.7465525813680848, "ndvi_norm": 0.9220022184878413, "road_norm": 0.9569182164141594, "digital_norm": 0.9286956521739128, "primary_growth_driver": "Road-Driven"}, {"rank": 47, "village_id": "BI230080", "state": "Bihar", "latitude": 26.87277, "longitude": 87.91436, "population": 1343, "growth_score": 99.11, "ntl_2019": 9.0695, "ntl_2024": 17.9203, "ntl_growth_abs": 8.8508, "ntl_growth_pct": 96.52, "ndbi_2020": -0.1433, "ndbi_2025": 0.001, "ndbi_delta": 0.1443, "built_area_ha_2025": 113.6, "built_growth_pct": 196.0, "ndvi_2019": 0.5055, "ndvi_2024": 0.7147, "ndvi_trend": 0.04184, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 17.8, "has_telecom_tower": 1, "antyodaya_score": 35.3, "ntl_norm": 0.8076215302312987, "builtup_norm": 1.0, "ndvi_norm": 0.8125391058298403, "road_norm": 0.9243307134453826, "digital_norm": 0.877391304347826, "primary_growth_driver": "Construction Boom"}, {"rank": 48, "village_id": "MA280253", "state": "Maharashtra", "latitude": 21.74077, "longitude": 75.78007, "population": 1716, "growth_score": 99.09, "ntl_2019": 7.4852, "ntl_2024": 16.86, "ntl_growth_abs": 9.3748, "ntl_growth_pct": 123.59, "ndbi_2020": 0.1409, "ndbi_2025": 0.3047, "ndbi_delta": 0.1638, "built_area_ha_2025": 176.7, "built_growth_pct": 75.66, "ndvi_2019": 0.3105, "ndvi_2024": 0.5437, "ndvi_trend": 0.04664, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 6.4, "has_telecom_tower": 1, "antyodaya_score": 28.4, "ntl_norm": 0.8579078357854216, "builtup_norm": 0.7995357303920061, "ndvi_norm": 0.876304025824792, "road_norm": 0.9872963971477648, "digital_norm": 0.9765217391304346, "primary_growth_driver": "Road-Driven"}, {"rank": 49, "village_id": "UT270091", "state": "Uttarakhand", "latitude": 29.17846, "longitude": 79.79905, "population": 4441, "growth_score": 99.07, "ntl_2019": 5.8989, "ntl_2024": 17.4466, "ntl_growth_abs": 11.5478, "ntl_growth_pct": 192.5, "ndbi_2020": -0.2595, "ndbi_2025": -0.1494, "ndbi_delta": 0.1101, "built_area_ha_2025": 70.4, "built_growth_pct": 90.19, "ndvi_2019": 0.3784, "ndvi_2024": 0.6445, "ndvi_trend": 0.05321, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 14.9, "has_telecom_tower": 1, "antyodaya_score": 21.7, "ntl_norm": 1.0, "builtup_norm": 0.6422539184064269, "ndvi_norm": 0.9635822600678824, "road_norm": 0.9403482996503748, "digital_norm": 0.9026086956521736, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 50, "village_id": "MA220209", "state": "Maharashtra", "latitude": 15.61196, "longitude": 80.34456, "population": 767, "growth_score": 99.05, "ntl_2019": 8.1042, "ntl_2024": 17.2126, "ntl_growth_abs": 9.1085, "ntl_growth_pct": 111.02, "ndbi_2020": 0.0016, "ndbi_2025": 0.1613, "ndbi_delta": 0.1597, "built_area_ha_2025": 110.9, "built_growth_pct": 161.49, "ndvi_2019": 0.2365, "ndvi_2024": 0.3997, "ndvi_trend": 0.03265, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 13.3, "has_telecom_tower": 1, "antyodaya_score": 32.3, "ntl_norm": 0.8324941398832802, "builtup_norm": 0.9893602499165586, "ndvi_norm": 0.6904558527561719, "road_norm": 0.9491855885910598, "digital_norm": 0.9165217391304346, "primary_growth_driver": "Construction Boom"}, {"rank": 51, "village_id": "TA200067", "state": "Tamil Nadu", "latitude": 9.37917, "longitude": 79.80637, "population": 1021, "growth_score": 99.03, "ntl_2019": 6.2586, "ntl_2024": 16.708, "ntl_growth_abs": 10.4495, "ntl_growth_pct": 164.34, "ndbi_2020": -0.2248, "ndbi_2025": -0.0846, "ndbi_delta": 0.1403, "built_area_ha_2025": 124.1, "built_growth_pct": 51.88, "ndvi_2019": 0.5146, "ndvi_2024": 0.7463, "ndvi_trend": 0.04635, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 5.3, "has_telecom_tower": 1, "antyodaya_score": 20.0, "ntl_norm": 0.9592747184135368, "builtup_norm": 0.6589064459098987, "ndvi_norm": 0.8724515619084305, "road_norm": 0.993372033294486, "digital_norm": 0.9860869565217388, "primary_growth_driver": "Road-Driven"}, {"rank": 52, "village_id": "UT140305", "state": "Uttar Pradesh", "latitude": 29.20786, "longitude": 82.86468, "population": 3012, "growth_score": 99.01, "ntl_2019": 10.0314, "ntl_2024": 20.4679, "ntl_growth_abs": 10.4365, "ntl_growth_pct": 103.01, "ndbi_2020": -0.1694, "ndbi_2025": -0.0629, "ndbi_delta": 0.1065, "built_area_ha_2025": 111.2, "built_growth_pct": 95.08, "ndvi_2019": 0.3807, "ndvi_2024": 0.6747, "ndvi_trend": 0.0588, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 11.0, "has_telecom_tower": 1, "antyodaya_score": 31.9, "ntl_norm": 0.9507657780017316, "builtup_norm": 0.6410389271293495, "ndvi_norm": 1.0, "road_norm": 0.961889191443295, "digital_norm": 0.9365217391304346, "primary_growth_driver": "Agricultural Growth"}, {"rank": 53, "village_id": "TA100292", "state": "Tamil Nadu", "latitude": 11.21253, "longitude": 77.35404, "population": 757, "growth_score": 98.99, "ntl_2019": 7.6112, "ntl_2024": 19.0458, "ntl_growth_abs": 11.4346, "ntl_growth_pct": 148.29, "ndbi_2020": -0.2223, "ndbi_2025": -0.1322, "ndbi_delta": 0.0901, "built_area_ha_2025": 136.3, "built_growth_pct": 92.65, "ndvi_2019": 0.2722, "ndvi_2024": 0.5242, "ndvi_trend": 0.05041, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 6.8, "has_telecom_tower": 1, "antyodaya_score": 18.0, "ntl_norm": 1.0, "builtup_norm": 0.576644389444251, "ndvi_norm": 0.926386056737494, "road_norm": 0.9850870749125936, "digital_norm": 0.9730434782608692, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 54, "village_id": "JH070077", "state": "Jharkhand", "latitude": 24.65441, "longitude": 85.5346, "population": 797, "growth_score": 98.97, "ntl_2019": 7.1216, "ntl_2024": 16.7109, "ntl_growth_abs": 9.5892, "ntl_growth_pct": 132.78, "ndbi_2020": 0.19, "ndbi_2025": 0.3672, "ndbi_delta": 0.1772, "built_area_ha_2025": 252.4, "built_growth_pct": 39.44, "ndvi_2019": 0.5263, "ndvi_2024": 0.7585, "ndvi_trend": 0.04645, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 8.4, "has_telecom_tower": 1, "antyodaya_score": 32.1, "ntl_norm": 0.8782572277466313, "builtup_norm": 0.7611324766930128, "ndvi_norm": 0.8737799977416587, "road_norm": 0.9762497859719084, "digital_norm": 0.9591304347826084, "primary_growth_driver": "Road-Driven"}, {"rank": 55, "village_id": "GU140167", "state": "Gujarat", "latitude": 21.77909, "longitude": 70.85257, "population": 1040, "growth_score": 98.95, "ntl_2019": 6.8222, "ntl_2024": 17.5224, "ntl_growth_abs": 10.7002, "ntl_growth_pct": 154.58, "ndbi_2020": -0.1363, "ndbi_2025": -0.0157, "ndbi_delta": 0.1206, "built_area_ha_2025": 170.6, "built_growth_pct": 102.66, "ndvi_2019": 0.3177, "ndvi_2024": 0.4849, "ndvi_trend": 0.03345, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 4.8, "has_telecom_tower": 1, "antyodaya_score": 32.3, "ntl_norm": 0.98061470522432, "builtup_norm": 0.7094834357380393, "ndvi_norm": 0.7010833394219973, "road_norm": 0.9961336860884502, "digital_norm": 0.9904347826086952, "primary_growth_driver": "Road-Driven"}, {"rank": 56, "village_id": "UT210512", "state": "Uttar Pradesh", "latitude": 28.14707, "longitude": 79.14645, "population": 2413, "growth_score": 98.93, "ntl_2019": 8.2444, "ntl_2024": 18.8396, "ntl_growth_abs": 10.5953, "ntl_growth_pct": 126.98, "ndbi_2020": -0.0045, "ndbi_2025": 0.1718, "ndbi_delta": 0.1762, "built_area_ha_2025": 194.4, "built_growth_pct": 105.6, "ndvi_2019": 0.4882, "ndvi_2024": 0.7171, "ndvi_trend": 0.04578, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 2.5, "has_telecom_tower": 0, "antyodaya_score": 23.9, "ntl_norm": 0.9678925943314582, "builtup_norm": 0.9151743119397192, "ndvi_norm": 0.8648794776590301, "road_norm": 1.0, "digital_norm": 0.488695652173913, "primary_growth_driver": "Road-Driven"}, {"rank": 57, "village_id": "HI070074", "state": "Himachal Pradesh", "latitude": 32.17643, "longitude": 75.88499, "population": 2347, "growth_score": 98.91, "ntl_2019": 9.244, "ntl_2024": 20.042, "ntl_growth_abs": 10.798, "ntl_growth_pct": 115.56, "ndbi_2020": 0.0112, "ndbi_2025": 0.1455, "ndbi_delta": 0.1343, "built_area_ha_2025": 206.2, "built_growth_pct": 77.17, "ndvi_2019": 0.3153, "ndvi_2024": 0.5362, "ndvi_trend": 0.04419, "road_connected": 1, "road_type_label": "WBM", "dist_to_town_km": 6.2, "has_telecom_tower": 1, "antyodaya_score": 37.9, "ntl_norm": 0.9847243271198922, "builtup_norm": 0.697714696701251, "ndvi_norm": 0.8437573479107021, "road_norm": 0.8558417241550724, "digital_norm": 0.9782608695652172, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 58, "village_id": "MA130244", "state": "Madhya Pradesh", "latitude": 26.64596, "longitude": 75.67569, "population": 1168, "growth_score": 98.89, "ntl_2019": 7.2441, "ntl_2024": 18.9756, "ntl_growth_abs": 11.7315, "ntl_growth_pct": 159.74, "ndbi_2020": -0.0267, "ndbi_2025": 0.1077, "ndbi_delta": 0.1344, "built_area_ha_2025": 157.7, "built_growth_pct": 116.5, "ndvi_2019": 0.2149, "ndvi_2024": 0.3763, "ndvi_trend": 0.03227, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 17.7, "has_telecom_tower": 1, "antyodaya_score": 29.7, "ntl_norm": 1.0, "builtup_norm": 0.7917693155620609, "ndvi_norm": 0.6854077965899048, "road_norm": 0.9248830440041756, "digital_norm": 0.8782608695652172, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 59, "village_id": "TE220166", "state": "Telangana", "latitude": 17.69605, "longitude": 79.26823, "population": 2597, "growth_score": 98.87, "ntl_2019": 7.7367, "ntl_2024": 19.029, "ntl_growth_abs": 11.2923, "ntl_growth_pct": 144.1, "ndbi_2020": 0.1474, "ndbi_2025": 0.2699, "ndbi_delta": 0.1225, "built_area_ha_2025": 215.2, "built_growth_pct": 57.44, "ndvi_2019": 0.306, "ndvi_2024": 0.5091, "ndvi_trend": 0.04063, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 5.8, "has_telecom_tower": 1, "antyodaya_score": 24.2, "ntl_norm": 1.0, "builtup_norm": 0.6085438663071244, "ndvi_norm": 0.7964650322477795, "road_norm": 0.9906103805005216, "digital_norm": 0.9817391304347824, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 60, "village_id": "KA190155", "state": "Karnataka", "latitude": 15.83569, "longitude": 75.92001, "population": 653, "growth_score": 98.85, "ntl_2019": 6.3646, "ntl_2024": 15.2254, "ntl_growth_abs": 8.8608, "ntl_growth_pct": 137.07, "ndbi_2020": -0.2522, "ndbi_2025": -0.1044, "ndbi_delta": 0.1478, "built_area_ha_2025": 176.4, "built_growth_pct": 138.56, "ndvi_2019": 0.5581, "ndvi_2024": 0.7831, "ndvi_trend": 0.04501, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 17.7, "has_telecom_tower": 1, "antyodaya_score": 27.7, "ntl_norm": 0.8133735643729314, "builtup_norm": 0.8922085944671201, "ndvi_norm": 0.8546505217431732, "road_norm": 0.9248830440041756, "digital_norm": 0.8782608695652172, "primary_growth_driver": "Road-Driven"}, {"rank": 61, "village_id": "MA210302", "state": "Maharashtra", "latitude": 19.62486, "longitude": 75.02303, "population": 3516, "growth_score": 98.83, "ntl_2019": 10.0329, "ntl_2024": 21.1092, "ntl_growth_abs": 11.0763, "ntl_growth_pct": 109.31, "ndbi_2020": -0.0156, "ndbi_2025": 0.1063, "ndbi_delta": 0.1219, "built_area_ha_2025": 183.9, "built_growth_pct": 85.42, "ndvi_2019": 0.552, "ndvi_2024": 0.7074, "ndvi_trend": 0.03107, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 5.3, "has_telecom_tower": 1, "antyodaya_score": 15.8, "ntl_norm": 1.0, "builtup_norm": 0.6730575207840933, "ndvi_norm": 0.6694665665911669, "road_norm": 0.993372033294486, "digital_norm": 0.9860869565217388, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 62, "village_id": "MA120221", "state": "Madhya Pradesh", "latitude": 23.71745, "longitude": 81.7354, "population": 500, "growth_score": 98.82, "ntl_2019": 5.8296, "ntl_2024": 15.2565, "ntl_growth_abs": 9.4269, "ntl_growth_pct": 158.98, "ndbi_2020": 0.0442, "ndbi_2025": 0.2029, "ndbi_delta": 0.1587, "built_area_ha_2025": 130.2, "built_growth_pct": 63.04, "ndvi_2019": 0.5691, "ndvi_2024": 0.8384, "ndvi_trend": 0.05384, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 17.5, "has_telecom_tower": 1, "antyodaya_score": 37.0, "ntl_norm": 0.8668219923381099, "builtup_norm": 0.7512457829677758, "ndvi_norm": 0.97195140581722, "road_norm": 0.9259877051217612, "digital_norm": 0.8799999999999998, "primary_growth_driver": "Agricultural Growth"}, {"rank": 63, "village_id": "AS230066", "state": "Assam", "latitude": 24.35524, "longitude": 91.14661, "population": 1146, "growth_score": 98.8, "ntl_2019": 8.1832, "ntl_2024": 17.747, "ntl_growth_abs": 9.5638, "ntl_growth_pct": 115.46, "ndbi_2020": 0.0391, "ndbi_2025": 0.1931, "ndbi_delta": 0.154, "built_area_ha_2025": 103.7, "built_growth_pct": 92.54, "ndvi_2019": 0.3511, "ndvi_2024": 0.5077, "ndvi_trend": 0.03132, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 2.6, "has_telecom_tower": 1, "antyodaya_score": 38.3, "ntl_norm": 0.8739033987824029, "builtup_norm": 0.8047292225175522, "ndvi_norm": 0.6727876561742374, "road_norm": 1.0, "digital_norm": 1.0, "primary_growth_driver": "Road-Driven"}, {"rank": 64, "village_id": "JH250073", "state": "Jharkhand", "latitude": 22.89916, "longitude": 85.04331, "population": 4186, "growth_score": 98.78, "ntl_2019": 7.6447, "ntl_2024": 18.8745, "ntl_growth_abs": 11.2299, "ntl_growth_pct": 145.0, "ndbi_2020": -0.2075, "ndbi_2025": -0.1011, "ndbi_delta": 0.1064, "built_area_ha_2025": 142.4, "built_growth_pct": 96.27, "ndvi_2019": 0.3308, "ndvi_2024": 0.4959, "ndvi_trend": 0.03302, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 4.7, "has_telecom_tower": 1, "antyodaya_score": 44.9, "ntl_norm": 1.0, "builtup_norm": 0.6435165564002523, "ndvi_norm": 0.6953710653391161, "road_norm": 0.9966860166472428, "digital_norm": 0.9913043478260868, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 65, "village_id": "MA200089", "state": "Maharashtra", "latitude": 19.79601, "longitude": 74.0285, "population": 1430, "growth_score": 98.76, "ntl_2019": 7.7042, "ntl_2024": 13.6007, "ntl_growth_abs": 5.8965, "ntl_growth_pct": 75.55, "ndbi_2020": -0.0443, "ndbi_2025": 0.135, "ndbi_delta": 0.1794, "built_area_ha_2025": 170.9, "built_growth_pct": 245.57, "ndvi_2019": 0.4486, "ndvi_2024": 0.7416, "ndvi_trend": 0.0586, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 2.1, "has_telecom_tower": 1, "antyodaya_score": 33.9, "ntl_norm": 0.5398682314920917, "builtup_norm": 1.0, "ndvi_norm": 1.0, "road_norm": 1.0, "digital_norm": 1.0, "primary_growth_driver": "Construction Boom"}, {"rank": 66, "village_id": "BI120339", "state": "Bihar", "latitude": 25.02602, "longitude": 87.39045, "population": 931, "growth_score": 98.74, "ntl_2019": 6.1787, "ntl_2024": 12.0382, "ntl_growth_abs": 5.8594, "ntl_growth_pct": 93.32, "ndbi_2020": -0.1966, "ndbi_2025": -0.0354, "ndbi_delta": 0.1612, "built_area_ha_2025": 166.4, "built_growth_pct": 225.96, "ndvi_2019": 0.2261, "ndvi_2024": 0.4998, "ndvi_trend": 0.05475, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 2.2, "has_telecom_tower": 1, "antyodaya_score": 33.5, "ntl_norm": 0.5386645540041809, "builtup_norm": 1.0, "ndvi_norm": 0.9840401718995964, "road_norm": 1.0, "digital_norm": 1.0, "primary_growth_driver": "Construction Boom"}, {"rank": 67, "village_id": "WE200156", "state": "West Bengal", "latitude": 22.83869, "longitude": 87.6108, "population": 1293, "growth_score": 98.72, "ntl_2019": 8.971, "ntl_2024": 19.6709, "ntl_growth_abs": 10.6999, "ntl_growth_pct": 117.96, "ndbi_2020": -0.283, "ndbi_2025": -0.1327, "ndbi_delta": 0.1503, "built_area_ha_2025": 104.8, "built_growth_pct": 157.42, "ndvi_2019": 0.3424, "ndvi_2024": 0.553, "ndvi_trend": 0.04212, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 11.2, "has_telecom_tower": 0, "antyodaya_score": 14.8, "ntl_norm": 0.9762040143200856, "builtup_norm": 0.946073207750882, "ndvi_norm": 0.8162587261628791, "road_norm": 0.9607845303257092, "digital_norm": 0.4130434782608695, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 68, "village_id": "AN170242", "state": "Andhra Pradesh", "latitude": 15.44504, "longitude": 82.91889, "population": 1670, "growth_score": 98.7, "ntl_2019": 7.7431, "ntl_2024": 16.2799, "ntl_growth_abs": 8.5368, "ntl_growth_pct": 108.84, "ndbi_2020": -0.2265, "ndbi_2025": -0.0788, "ndbi_delta": 0.1477, "built_area_ha_2025": 115.5, "built_growth_pct": 126.0, "ndvi_2019": 0.3186, "ndvi_2024": 0.5137, "ndvi_trend": 0.03902, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 7.8, "has_telecom_tower": 1, "antyodaya_score": 40.8, "ntl_norm": 0.7809047980829208, "builtup_norm": 0.8619291059736831, "ndvi_norm": 0.775077215332806, "road_norm": 0.9795637693246652, "digital_norm": 0.9643478260869564, "primary_growth_driver": "Road-Driven"}, {"rank": 69, "village_id": "OD070151", "state": "Odisha", "latitude": 20.65352, "longitude": 83.40366, "population": 847, "growth_score": 98.68, "ntl_2019": 7.4483, "ntl_2024": 18.6513, "ntl_growth_abs": 11.203, "ntl_growth_pct": 148.42, "ndbi_2020": -0.0895, "ndbi_2025": 0.0276, "ndbi_delta": 0.1172, "built_area_ha_2025": 146.5, "built_growth_pct": 117.33, "ndvi_2019": 0.5164, "ndvi_2024": 0.7028, "ndvi_trend": 0.03728, "road_connected": 1, "road_type_label": "WBM", "dist_to_town_km": 12.9, "has_telecom_tower": 1, "antyodaya_score": 22.2, "ntl_norm": 1.0, "builtup_norm": 0.7322823897020198, "ndvi_norm": 0.751962431834636, "road_norm": 0.8188355767159531, "digital_norm": 0.92, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 70, "village_id": "KA020179", "state": "Karnataka", "latitude": 17.7853, "longitude": 75.46427, "population": 2591, "growth_score": 98.66, "ntl_2019": 7.1296, "ntl_2024": 18.3823, "ntl_growth_abs": 11.2527, "ntl_growth_pct": 155.65, "ndbi_2020": 0.0906, "ndbi_2025": 0.2013, "ndbi_delta": 0.1107, "built_area_ha_2025": 148.7, "built_growth_pct": 59.14, "ndvi_2019": 0.2061, "ndvi_2024": 0.4422, "ndvi_trend": 0.04721, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 12.7, "has_telecom_tower": 1, "antyodaya_score": 12.0, "ntl_norm": 1.0, "builtup_norm": 0.5704264929086199, "ndvi_norm": 0.8838761100741928, "road_norm": 0.9524995719438168, "digital_norm": 0.9217391304347824, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 71, "village_id": "KA150141", "state": "Karnataka", "latitude": 14.93634, "longitude": 78.37524, "population": 2210, "growth_score": 98.64, "ntl_2019": 10.3699, "ntl_2024": 19.5217, "ntl_growth_abs": 9.1518, "ntl_growth_pct": 87.41, "ndbi_2020": 0.1891, "ndbi_2025": 0.3456, "ndbi_delta": 0.1565, "built_area_ha_2025": 129.1, "built_growth_pct": 144.49, "ndvi_2019": 0.3725, "ndvi_2024": 0.5236, "ndvi_trend": 0.03022, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 16.7, "has_telecom_tower": 1, "antyodaya_score": 31.0, "ntl_norm": 0.8335553632478083, "builtup_norm": 0.9374253286610962, "ndvi_norm": 0.6581748620087275, "road_norm": 0.9304063495921038, "digital_norm": 0.8869565217391303, "primary_growth_driver": "Construction Boom"}, {"rank": 72, "village_id": "RA140247", "state": "Rajasthan", "latitude": 24.56522, "longitude": 76.40442, "population": 1269, "growth_score": 98.62, "ntl_2019": 9.9209, "ntl_2024": 17.3502, "ntl_growth_abs": 7.4293, "ntl_growth_pct": 74.14, "ndbi_2020": -0.1942, "ndbi_2025": -0.0179, "ndbi_delta": 0.1763, "built_area_ha_2025": 101.0, "built_growth_pct": 216.5, "ndvi_2019": 0.5427, "ndvi_2024": 0.7338, "ndvi_trend": 0.03822, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 9.7, "has_telecom_tower": 1, "antyodaya_score": 15.5, "ntl_norm": 0.6773173070608975, "builtup_norm": 1.0, "ndvi_norm": 0.7644497286669807, "road_norm": 0.9690694887076016, "digital_norm": 0.9478260869565216, "primary_growth_driver": "Construction Boom"}, {"rank": 73, "village_id": "TA240024", "state": "Tamil Nadu", "latitude": 10.10736, "longitude": 79.37626, "population": 2063, "growth_score": 98.6, "ntl_2019": 6.1688, "ntl_2024": 17.9991, "ntl_growth_abs": 11.8304, "ntl_growth_pct": 188.72, "ndbi_2020": -0.1351, "ndbi_2025": -0.0217, "ndbi_delta": 0.1133, "built_area_ha_2025": 78.5, "built_growth_pct": 98.78, "ndvi_2019": 0.4503, "ndvi_2024": 0.5691, "ndvi_trend": 0.02376, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 2.3, "has_telecom_tower": 1, "antyodaya_score": 30.5, "ntl_norm": 1.0, "builtup_norm": 0.6741533952693003, "ndvi_norm": 0.572357907182188, "road_norm": 1.0, "digital_norm": 1.0, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 74, "village_id": "HA280122", "state": "Haryana", "latitude": 29.70143, "longitude": 75.4929, "population": 753, "growth_score": 98.58, "ntl_2019": 11.9337, "ntl_2024": 21.4619, "ntl_growth_abs": 9.5283, "ntl_growth_pct": 79.18, "ndbi_2020": -0.1293, "ndbi_2025": 0.0131, "ndbi_delta": 0.1424, "built_area_ha_2025": 167.8, "built_growth_pct": 171.86, "ndvi_2019": 0.3477, "ndvi_2024": 0.4507, "ndvi_trend": 0.02059, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 14.8, "has_telecom_tower": 1, "antyodaya_score": 10.5, "ntl_norm": 0.866373082285433, "builtup_norm": 0.9522434575697648, "ndvi_norm": 0.5302464912688553, "road_norm": 0.9409006302091676, "digital_norm": 0.9034782608695652, "primary_growth_driver": "Construction Boom"}, {"rank": 75, "village_id": "GU180114", "state": "Gujarat", "latitude": 24.09211, "longitude": 71.43234, "population": 1318, "growth_score": 98.56, "ntl_2019": 11.5474, "ntl_2024": 20.8955, "ntl_growth_abs": 9.3481, "ntl_growth_pct": 80.26, "ndbi_2020": 0.0511, "ndbi_2025": 0.2059, "ndbi_delta": 0.1548, "built_area_ha_2025": 166.0, "built_growth_pct": 100.21, "ndvi_2019": 0.5619, "ndvi_2024": 0.8033, "ndvi_trend": 0.04827, "road_connected": 1, "road_type_label": "WBM", "dist_to_town_km": 14.4, "has_telecom_tower": 1, "antyodaya_score": 37.9, "ntl_norm": 0.8503236500821306, "builtup_norm": 0.8258605413953483, "ndvi_norm": 0.8979575299064113, "road_norm": 0.8105506183340606, "digital_norm": 0.9069565217391302, "primary_growth_driver": "Agricultural Growth"}, {"rank": 76, "village_id": "HI290069", "state": "Himachal Pradesh", "latitude": 32.08353, "longitude": 77.92013, "population": 1948, "growth_score": 98.54, "ntl_2019": 9.6558, "ntl_2024": 20.8123, "ntl_growth_abs": 11.1566, "ntl_growth_pct": 114.36, "ndbi_2020": -0.1542, "ndbi_2025": 0.0021, "ndbi_delta": 0.1563, "built_area_ha_2025": 137.5, "built_growth_pct": 83.0, "ndvi_2019": 0.5796, "ndvi_2024": 0.7221, "ndvi_trend": 0.02851, "road_connected": 1, "road_type_label": "Kutcha", "dist_to_town_km": 3.7, "has_telecom_tower": 1, "antyodaya_score": 20.8, "ntl_norm": 1.0, "builtup_norm": 0.7902207972677466, "ndvi_norm": 0.6354586092605259, "road_norm": 0.7370906540146147, "digital_norm": 1.0, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 77, "village_id": "UT260001", "state": "Uttar Pradesh", "latitude": 25.47778, "longitude": 80.21934, "population": 4526, "growth_score": 98.52, "ntl_2019": 10.1969, "ntl_2024": 18.3114, "ntl_growth_abs": 8.1145, "ntl_growth_pct": 78.81, "ndbi_2020": -0.2909, "ndbi_2025": -0.1675, "ndbi_delta": 0.1235, "built_area_ha_2025": 136.3, "built_growth_pct": 177.59, "ndvi_2019": 0.5536, "ndvi_2024": 0.775, "ndvi_trend": 0.04427, "road_connected": 1, "road_type_label": "WBM", "dist_to_town_km": 4.0, "has_telecom_tower": 1, "antyodaya_score": 28.2, "ntl_norm": 0.7393949833319987, "builtup_norm": 0.8983550209276291, "ndvi_norm": 0.8448200965772845, "road_norm": 0.8679929964485146, "digital_norm": 0.997391304347826, "primary_growth_driver": "Construction Boom"}, {"rank": 78, "village_id": "UT090532", "state": "Uttar Pradesh", "latitude": 26.03903, "longitude": 78.48742, "population": 2803, "growth_score": 98.5, "ntl_2019": 7.3794, "ntl_2024": 19.327, "ntl_growth_abs": 11.9476, "ntl_growth_pct": 159.74, "ndbi_2020": 0.1016, "ndbi_2025": 0.2693, "ndbi_delta": 0.1677, "built_area_ha_2025": 283.9, "built_growth_pct": 60.2, "ndvi_2019": 0.2975, "ndvi_2024": 0.4611, "ndvi_trend": 0.03272, "road_connected": 1, "road_type_label": "WBM", "dist_to_town_km": 16.1, "has_telecom_tower": 1, "antyodaya_score": 34.2, "ntl_norm": 1.0, "builtup_norm": 0.7766414829945293, "ndvi_norm": 0.6913857578394316, "road_norm": 0.8011609988345826, "digital_norm": 0.8921739130434782, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 79, "village_id": "KA260162", "state": "Karnataka", "latitude": 13.21358, "longitude": 74.04026, "population": 1078, "growth_score": 98.49, "ntl_2019": 7.4813, "ntl_2024": 18.8461, "ntl_growth_abs": 11.3648, "ntl_growth_pct": 149.91, "ndbi_2020": -0.1155, "ndbi_2025": -0.0146, "ndbi_delta": 0.1009, "built_area_ha_2025": 138.4, "built_growth_pct": 45.28, "ndvi_2019": 0.3639, "ndvi_2024": 0.6315, "ndvi_trend": 0.05351, "road_connected": 1, "road_type_label": "WBM", "dist_to_town_km": 3.1, "has_telecom_tower": 1, "antyodaya_score": 14.8, "ntl_norm": 1.0, "builtup_norm": 0.5023869813922894, "ndvi_norm": 0.967567567567567, "road_norm": 0.8729639714776499, "digital_norm": 1.0, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 80, "village_id": "PU010059", "state": "Punjab", "latitude": 29.6539, "longitude": 76.02587, "population": 758, "growth_score": 98.47, "ntl_2019": 9.7531, "ntl_2024": 20.4784, "ntl_growth_abs": 10.7253, "ntl_growth_pct": 108.85, "ndbi_2020": -0.1491, "ndbi_2025": -0.0549, "ndbi_delta": 0.0941, "built_area_ha_2025": 135.1, "built_growth_pct": 79.54, "ndvi_2019": 0.4055, "ndvi_2024": 0.624, "ndvi_trend": 0.0437, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 7.4, "has_telecom_tower": 1, "antyodaya_score": 31.2, "ntl_norm": 0.977393925233048, "builtup_norm": 0.5597059816402906, "ndvi_norm": 0.837248012327884, "road_norm": 0.9817730915598366, "digital_norm": 0.9678260869565216, "primary_growth_driver": "Road-Driven"}, {"rank": 81, "village_id": "BI150079", "state": "Bihar", "latitude": 25.50935, "longitude": 87.36511, "population": 1005, "growth_score": 98.45, "ntl_2019": 7.1279, "ntl_2024": 15.0058, "ntl_growth_abs": 7.8779, "ntl_growth_pct": 108.99, "ndbi_2020": 0.044, "ndbi_2025": 0.2066, "ndbi_delta": 0.1626, "built_area_ha_2025": 134.4, "built_growth_pct": 133.64, "ndvi_2019": 0.4274, "ndvi_2024": 0.5928, "ndvi_trend": 0.03309, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 5.5, "has_telecom_tower": 1, "antyodaya_score": 15.8, "ntl_norm": 0.7217653877432739, "builtup_norm": 0.933375357737505, "ndvi_norm": 0.6963009704223759, "road_norm": 0.9922673721769004, "digital_norm": 0.9843478260869564, "primary_growth_driver": "Road-Driven"}, {"rank": 82, "village_id": "BI040304", "state": "Bihar", "latitude": 24.81266, "longitude": 87.16412, "population": 2578, "growth_score": 98.43, "ntl_2019": 8.3292, "ntl_2024": 18.4216, "ntl_growth_abs": 10.0923, "ntl_growth_pct": 119.73, "ndbi_2020": 0.0556, "ndbi_2025": 0.1766, "ndbi_delta": 0.121, "built_area_ha_2025": 241.5, "built_growth_pct": 45.44, "ndvi_2019": 0.6174, "ndvi_2024": 0.8808, "ndvi_trend": 0.05268, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 10.1, "has_telecom_tower": 1, "antyodaya_score": 35.7, "ntl_norm": 0.9218643502636596, "builtup_norm": 0.5745955806240813, "ndvi_norm": 0.9565415501517732, "road_norm": 0.9668601664724304, "digital_norm": 0.9443478260869562, "primary_growth_driver": "Road-Driven"}, {"rank": 83, "village_id": "CH090122", "state": "Chhattisgarh", "latitude": 18.94201, "longitude": 81.81748, "population": 3871, "growth_score": 98.41, "ntl_2019": 7.8683, "ntl_2024": 18.625, "ntl_growth_abs": 10.7567, "ntl_growth_pct": 134.99, "ndbi_2020": -0.2256, "ndbi_2025": -0.1234, "ndbi_delta": 0.1021, "built_area_ha_2025": 140.1, "built_growth_pct": 75.67, "ndvi_2019": 0.2969, "ndvi_2024": 0.4793, "ndvi_trend": 0.03648, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 4.2, "has_telecom_tower": 1, "antyodaya_score": 19.4, "ntl_norm": 0.9833422827043844, "builtup_norm": 0.5790743719984056, "ndvi_norm": 0.7413349451688106, "road_norm": 0.9994476694412072, "digital_norm": 0.9956521739130432, "primary_growth_driver": "Road-Driven"}, {"rank": 84, "village_id": "BI020038", "state": "Bihar", "latitude": 24.507, "longitude": 85.51784, "population": 2498, "growth_score": 98.39, "ntl_2019": 8.3415, "ntl_2024": 16.813, "ntl_growth_abs": 8.4715, "ntl_growth_pct": 100.36, "ndbi_2020": 0.1599, "ndbi_2025": 0.3301, "ndbi_delta": 0.1702, "built_area_ha_2025": 298.0, "built_growth_pct": 67.05, "ndvi_2019": 0.2624, "ndvi_2024": 0.4957, "ndvi_trend": 0.04668, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 10.5, "has_telecom_tower": 1, "antyodaya_score": 40.2, "ntl_norm": 0.7740268975291749, "builtup_norm": 0.8018942428710385, "ndvi_norm": 0.8768354001580834, "road_norm": 0.964650844237259, "digital_norm": 0.9408695652173912, "primary_growth_driver": "Road-Driven"}, {"rank": 85, "village_id": "RA100022", "state": "Rajasthan", "latitude": 29.44318, "longitude": 73.15113, "population": 667, "growth_score": 98.37, "ntl_2019": 10.2118, "ntl_2024": 21.0647, "ntl_growth_abs": 10.8529, "ntl_growth_pct": 105.25, "ndbi_2020": 0.1036, "ndbi_2025": 0.2152, "ndbi_delta": 0.1116, "built_area_ha_2025": 123.3, "built_growth_pct": 78.03, "ndvi_2019": 0.6223, "ndvi_2024": 0.7724, "ndvi_trend": 0.03, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 3.0, "has_telecom_tower": 1, "antyodaya_score": 22.4, "ntl_norm": 0.9884191561267912, "builtup_norm": 0.6186449702577281, "ndvi_norm": 0.6552523031756256, "road_norm": 1.0, "digital_norm": 1.0, "primary_growth_driver": "Road-Driven"}, {"rank": 86, "village_id": "MA230199", "state": "Maharashtra", "latitude": 21.76485, "longitude": 76.8444, "population": 1446, "growth_score": 98.35, "ntl_2019": 10.196, "ntl_2024": 20.5559, "ntl_growth_abs": 10.3599, "ntl_growth_pct": 100.62, "ndbi_2020": 0.1298, "ndbi_2025": 0.2682, "ndbi_delta": 0.1384, "built_area_ha_2025": 141.8, "built_growth_pct": 146.45, "ndvi_2019": 0.4816, "ndvi_2024": 0.6086, "ndvi_trend": 0.02541, "road_connected": 1, "road_type_label": "WBM", "dist_to_town_km": 14.7, "has_telecom_tower": 1, "antyodaya_score": 34.8, "ntl_norm": 0.9436023706544828, "builtup_norm": 0.8774142889168256, "ndvi_norm": 0.5942770984304528, "road_norm": 0.808893626657682, "digital_norm": 0.9043478260869564, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 87, "village_id": "MA170390", "state": "Madhya Pradesh", "latitude": 25.47101, "longitude": 75.42113, "population": 743, "growth_score": 98.33, "ntl_2019": 7.8681, "ntl_2024": 17.3166, "ntl_growth_abs": 9.4486, "ntl_growth_pct": 118.58, "ndbi_2020": -0.2301, "ndbi_2025": -0.1303, "ndbi_delta": 0.0998, "built_area_ha_2025": 114.0, "built_growth_pct": 110.62, "ndvi_2019": 0.4326, "ndvi_2024": 0.7303, "ndvi_trend": 0.05955, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 15.6, "has_telecom_tower": 1, "antyodaya_score": 43.7, "ntl_norm": 0.8639340043325557, "builtup_norm": 0.6541179508767114, "ndvi_norm": 1.0, "road_norm": 0.9364819857388248, "digital_norm": 0.8965217391304346, "primary_growth_driver": "Agricultural Growth"}, {"rank": 88, "village_id": "BI150182", "state": "Bihar", "latitude": 24.46579, "longitude": 84.71904, "population": 2458, "growth_score": 98.31, "ntl_2019": 7.4068, "ntl_2024": 16.1634, "ntl_growth_abs": 8.7566, "ntl_growth_pct": 116.65, "ndbi_2020": 0.135, "ndbi_2025": 0.2775, "ndbi_delta": 0.1426, "built_area_ha_2025": 152.6, "built_growth_pct": 115.29, "ndvi_2019": 0.3668, "ndvi_2024": 0.5604, "ndvi_trend": 0.03874, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 10.3, "has_telecom_tower": 1, "antyodaya_score": 14.4, "ntl_norm": 0.8015738140016365, "builtup_norm": 0.8181894199988993, "ndvi_norm": 0.7713575949997671, "road_norm": 0.9657555053548446, "digital_norm": 0.9426086956521738, "primary_growth_driver": "Road-Driven"}, {"rank": 89, "village_id": "KA240088", "state": "Karnataka", "latitude": 14.31566, "longitude": 77.81971, "population": 1020, "growth_score": 98.29, "ntl_2019": 10.0391, "ntl_2024": 18.0265, "ntl_growth_abs": 7.9874, "ntl_growth_pct": 78.78, "ndbi_2020": -0.122, "ndbi_2025": 0.0493, "ndbi_delta": 0.1713, "built_area_ha_2025": 121.3, "built_growth_pct": 108.21, "ndvi_2019": 0.4466, "ndvi_2024": 0.6279, "ndvi_trend": 0.03626, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 7.7, "has_telecom_tower": 1, "antyodaya_score": 26.7, "ntl_norm": 0.7279800985125321, "builtup_norm": 0.9038820400704124, "ndvi_norm": 0.7384123863357086, "road_norm": 0.9801160998834582, "digital_norm": 0.9652173913043476, "primary_growth_driver": "Road-Driven"}, {"rank": 90, "village_id": "PU110142", "state": "Punjab", "latitude": 31.97143, "longitude": 76.47224, "population": 1921, "growth_score": 98.27, "ntl_2019": 9.5905, "ntl_2024": 19.4599, "ntl_growth_abs": 9.8694, "ntl_growth_pct": 101.85, "ndbi_2020": -0.1091, "ndbi_2025": 0.0403, "ndbi_delta": 0.1494, "built_area_ha_2025": 105.2, "built_growth_pct": 98.22, "ndvi_2019": 0.6604, "ndvi_2024": 0.8047, "ndvi_trend": 0.02886, "road_connected": 1, "road_type_label": "WBM", "dist_to_town_km": 3.7, "has_telecom_tower": 1, "antyodaya_score": 33.4, "ntl_norm": 0.8997115369841628, "builtup_norm": 0.8018227727959164, "ndvi_norm": 0.6401081346768245, "road_norm": 0.869649988124893, "digital_norm": 1.0, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 91, "village_id": "TE180033", "state": "Telangana", "latitude": 16.03038, "longitude": 80.05805, "population": 1962, "growth_score": 98.25, "ntl_2019": 8.1156, "ntl_2024": 18.5744, "ntl_growth_abs": 10.4588, "ntl_growth_pct": 127.3, "ndbi_2020": -0.1361, "ndbi_2025": -0.0328, "ndbi_delta": 0.1033, "built_area_ha_2025": 144.2, "built_growth_pct": 53.42, "ndvi_2019": 0.4143, "ndvi_2024": 0.6757, "ndvi_trend": 0.05227, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 11.0, "has_telecom_tower": 1, "antyodaya_score": 22.1, "ntl_norm": 0.9556756568845424, "builtup_norm": 0.5303556041234421, "ndvi_norm": 0.951094963235538, "road_norm": 0.961889191443295, "digital_norm": 0.9365217391304346, "primary_growth_driver": "Road-Driven"}, {"rank": 92, "village_id": "TE040146", "state": "Telangana", "latitude": 19.60416, "longitude": 80.01054, "population": 2692, "growth_score": 98.23, "ntl_2019": 6.6757, "ntl_2024": 17.6891, "ntl_growth_abs": 11.0134, "ntl_growth_pct": 162.54, "ndbi_2020": 0.1044, "ndbi_2025": 0.2124, "ndbi_delta": 0.108, "built_area_ha_2025": 229.5, "built_growth_pct": 28.94, "ndvi_2019": 0.4415, "ndvi_2024": 0.6995, "ndvi_trend": 0.05158, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 12.1, "has_telecom_tower": 1, "antyodaya_score": 38.5, "ntl_norm": 1.0, "builtup_norm": 0.4888314904774462, "ndvi_norm": 0.9419287559862636, "road_norm": 0.955813555296574, "digital_norm": 0.9269565217391302, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 93, "village_id": "RA110284", "state": "Rajasthan", "latitude": 25.32791, "longitude": 77.8231, "population": 845, "growth_score": 98.21, "ntl_2019": 6.8756, "ntl_2024": 18.5307, "ntl_growth_abs": 11.655, "ntl_growth_pct": 167.08, "ndbi_2020": -0.148, "ndbi_2025": -0.053, "ndbi_delta": 0.0949, "built_area_ha_2025": 110.4, "built_growth_pct": 101.29, "ndvi_2019": 0.6318, "ndvi_2024": 0.8075, "ndvi_trend": 0.03514, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 11.6, "has_telecom_tower": 1, "antyodaya_score": 41.6, "ntl_norm": 1.0, "builtup_norm": 0.6143805891087705, "ndvi_norm": 0.7235339050035532, "road_norm": 0.958575208090538, "digital_norm": 0.9313043478260868, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 94, "village_id": "HI160014", "state": "Himachal Pradesh", "latitude": 31.25887, "longitude": 77.52832, "population": 3379, "growth_score": 98.19, "ntl_2019": 7.4817, "ntl_2024": 16.4052, "ntl_growth_abs": 8.9236, "ntl_growth_pct": 117.7, "ndbi_2020": -0.1432, "ndbi_2025": -0.0156, "ndbi_delta": 0.1276, "built_area_ha_2025": 135.3, "built_growth_pct": 194.02, "ndvi_2019": 0.3296, "ndvi_2024": 0.5871, "ndvi_trend": 0.05151, "road_connected": 0, "road_type_label": "Black-Top", "dist_to_town_km": 9.7, "has_telecom_tower": 1, "antyodaya_score": 18.4, "ntl_norm": 0.8166931045757924, "builtup_norm": 0.9521481641362686, "ndvi_norm": 0.9409988509030038, "road_norm": 0.5272050416733406, "digital_norm": 0.9478260869565216, "primary_growth_driver": "Construction Boom"}, {"rank": 95, "village_id": "KA290254", "state": "Karnataka", "latitude": 13.19669, "longitude": 76.83067, "population": 1839, "growth_score": 98.17, "ntl_2019": 8.6068, "ntl_2024": 19.7458, "ntl_growth_abs": 11.1391, "ntl_growth_pct": 127.94, "ndbi_2020": -0.0625, "ndbi_2025": 0.0559, "ndbi_delta": 0.1185, "built_area_ha_2025": 141.7, "built_growth_pct": 40.19, "ndvi_2019": 0.2871, "ndvi_2024": 0.505, "ndvi_trend": 0.04357, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 12.8, "has_telecom_tower": 1, "antyodaya_score": 29.9, "ntl_norm": 1.0, "builtup_norm": 0.5531545580874225, "ndvi_norm": 0.8355210457446873, "road_norm": 0.951947241385024, "digital_norm": 0.920869565217391, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 96, "village_id": "RA040355", "state": "Rajasthan", "latitude": 24.14973, "longitude": 74.56523, "population": 1013, "growth_score": 98.16, "ntl_2019": 9.9733, "ntl_2024": 21.3157, "ntl_growth_abs": 11.3424, "ntl_growth_pct": 112.6, "ndbi_2020": 0.0327, "ndbi_2025": 0.1255, "ndbi_delta": 0.0929, "built_area_ha_2025": 126.6, "built_growth_pct": 44.81, "ndvi_2019": 0.4004, "ndvi_2024": 0.6455, "ndvi_trend": 0.04903, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 8.6, "has_telecom_tower": 1, "antyodaya_score": 36.5, "ntl_norm": 1.0, "builtup_norm": 0.47267925349983, "ndvi_norm": 0.9080536422389454, "road_norm": 0.9751451248543228, "digital_norm": 0.957391304347826, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 97, "village_id": "UT250016", "state": "Uttarakhand", "latitude": 29.99838, "longitude": 78.93393, "population": 3778, "growth_score": 98.14, "ntl_2019": 7.9625, "ntl_2024": 19.5905, "ntl_growth_abs": 11.6279, "ntl_growth_pct": 144.22, "ndbi_2020": 0.07, "ndbi_2025": 0.1739, "ndbi_delta": 0.1039, "built_area_ha_2025": 117.1, "built_growth_pct": 118.38, "ndvi_2019": 0.2165, "ndvi_2024": 0.3541, "ndvi_trend": 0.02752, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 13.9, "has_telecom_tower": 1, "antyodaya_score": 41.0, "ntl_norm": 1.0, "builtup_norm": 0.6872562423750362, "ndvi_norm": 0.622307094511567, "road_norm": 0.9458716052383028, "digital_norm": 0.9113043478260868, "primary_growth_driver": "NTL-Led (Electrification)"}, {"rank": 98, "village_id": "UT170001", "state": "Uttarakhand", "latitude": 30.03497, "longitude": 77.71681, "population": 1306, "growth_score": 98.12, "ntl_2019": 7.4375, "ntl_2024": 16.5365, "ntl_growth_abs": 9.099, "ntl_growth_pct": 120.72, "ndbi_2020": -0.0905, "ndbi_2025": 0.031, "ndbi_delta": 0.1214, "built_area_ha_2025": 173.3, "built_growth_pct": 79.46, "ndvi_2019": 0.3259, "ndvi_2024": 0.5667, "ndvi_trend": 0.04816, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 6.4, "has_telecom_tower": 1, "antyodaya_score": 20.5, "ntl_norm": 0.832802391452785, "builtup_norm": 0.6570720473150955, "ndvi_norm": 0.8964962504898604, "road_norm": 0.9872963971477648, "digital_norm": 0.9765217391304346, "primary_growth_driver": "Road-Driven"}, {"rank": 99, "village_id": "UT260240", "state": "Uttar Pradesh", "latitude": 26.91348, "longitude": 80.39417, "population": 2428, "growth_score": 98.1, "ntl_2019": 10.4312, "ntl_2024": 17.5529, "ntl_growth_abs": 7.1217, "ntl_growth_pct": 67.62, "ndbi_2020": -0.1199, "ndbi_2025": 0.045, "ndbi_delta": 0.1649, "built_area_ha_2025": 163.1, "built_growth_pct": 247.73, "ndvi_2019": 0.6076, "ndvi_2024": 0.7636, "ndvi_trend": 0.0312, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 5.0, "has_telecom_tower": 1, "antyodaya_score": 27.5, "ntl_norm": 0.6489198556752976, "builtup_norm": 1.0, "ndvi_norm": 0.6711935331743635, "road_norm": 0.9950290249708644, "digital_norm": 0.9886956521739128, "primary_growth_driver": "Construction Boom"}, {"rank": 100, "village_id": "WE220110", "state": "West Bengal", "latitude": 26.69356, "longitude": 86.91521, "population": 2034, "growth_score": 98.08, "ntl_2019": 7.323, "ntl_2024": 17.1046, "ntl_growth_abs": 9.7817, "ntl_growth_pct": 131.78, "ndbi_2020": 0.1549, "ndbi_2025": 0.2871, "ndbi_delta": 0.1322, "built_area_ha_2025": 129.6, "built_growth_pct": 127.25, "ndvi_2019": 0.4355, "ndvi_2024": 0.5606, "ndvi_trend": 0.02501, "road_connected": 1, "road_type_label": "Black-Top", "dist_to_town_km": 12.0, "has_telecom_tower": 1, "antyodaya_score": 22.2, "ntl_norm": 0.8954205554273091, "builtup_norm": 0.8095177175507396, "ndvi_norm": 0.5889633550975402, "road_norm": 0.9563658858553664, "digital_norm": 0.9278260869565216, "primary_growth_driver": "Road-Driven"}];
+const STATE_COUNTS = {"Uttar Pradesh": 10, "Bihar": 9, "Karnataka": 9, "Tamil Nadu": 9, "Madhya Pradesh": 7, "Rajasthan": 7, "Telangana": 6, "West Bengal": 5, "Uttarakhand": 5, "Andhra Pradesh": 5, "Maharashtra": 5, "Haryana": 4, "Gujarat": 4, "Punjab": 4, "Chhattisgarh": 3, "Jharkhand": 3, "Himachal Pradesh": 3, "Assam": 1, "Odisha": 1};
+const DRIVER_COUNTS = {"NTL-Led (Electrification)": 36, "Construction Boom": 28, "Road-Driven": 24, "Agricultural Growth": 12};
+
+const DRIVER_COLORS = {
+  "NTL-Led (Electrification)": "#F59E0B",
+  "Construction Boom": "#EF4444",
+  "Road-Driven": "#3B82F6",
+  "Agricultural Growth": "#22C55E"
+};
+
+// ── Map ────────────────────────────────────────────────────────────────────
+const map = L.map('map', {center: [22.5, 79.5], zoom: 5});
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© OpenStreetMap © CartoDB', subdomains: 'abcd', maxZoom: 19
+}).addTo(map);
+
+function getColor(driver) { return DRIVER_COLORS[driver] || '#94A3B8'; }
+
+const markers = {};
+VILLAGES.forEach(v => {
+  const isTop10 = v.rank <= 10;
+  const color = getColor(v.primary_growth_driver);
+  const size = isTop10 ? 16 : Math.max(8, Math.min(14, v.growth_score / 12));
+  const marker = L.circleMarker([v.latitude, v.longitude], {
+    radius: size,
+    fillColor: color,
+    color: isTop10 ? '#6B21A8' : color,
+    weight: isTop10 ? 2.5 : 1,
+    opacity: 1,
+    fillOpacity: isTop10 ? 0.95 : 0.75,
+  }).addTo(map);
+  marker.bindTooltip(`<b>#${v.rank} ${v.village_id}</b><br>${v.state}<br>Score: ${v.growth_score.toFixed(1)}<br>${v.primary_growth_driver}`, {
+    className: 'leaflet-tooltip'
+  });
+  marker.on('click', () => showDetail(v));
+  markers[v.village_id] = marker;
+});
+
+// ── State Chart ────────────────────────────────────────────────────────────
+const stateEntries = Object.entries(STATE_COUNTS).sort((a,b)=>b[1]-a[1]).slice(0,10);
+new Chart(document.getElementById('stateChart'), {
+  type: 'bar',
+  data: {
+    labels: stateEntries.map(e => e[0].replace(' Pradesh','').replace('Tamil ','TN ')),
+    datasets: [{ data: stateEntries.map(e=>e[1]),
+      backgroundColor: '#3B82F6', borderRadius: 4 }]
+  },
+  options: {
+    responsive: true, plugins: {legend:{display:false}},
+    scales: {
+      x: { grid: {display:false}, ticks: {font:{size:10}} },
+      y: { grid: {color:'#F1F5F9'}, ticks: {stepSize:1} }
+    }
+  }
+});
+
+// ── Driver Chart ───────────────────────────────────────────────────────────
+new Chart(document.getElementById('driverChart'), {
+  type: 'doughnut',
+  data: {
+    labels: Object.keys(DRIVER_COUNTS),
+    datasets: [{
+      data: Object.values(DRIVER_COUNTS),
+      backgroundColor: Object.keys(DRIVER_COUNTS).map(k => DRIVER_COLORS[k]),
+      borderWidth: 2, borderColor: '#fff'
+    }]
+  },
+  options: {
+    responsive: true, cutout: '62%',
+    plugins: {
+      legend: { position: 'bottom', labels: {font:{size:10}, boxWidth:10, padding:8} }
+    }
+  }
+});
+
+// ── Scatter Chart ──────────────────────────────────────────────────────────
+new Chart(document.getElementById('scatterChart'), {
+  type: 'scatter',
+  data: {
+    datasets: Object.keys(DRIVER_COLORS).map(driver => ({
+      label: driver,
+      data: VILLAGES.filter(v=>v.primary_growth_driver===driver)
+              .map(v=>({x: v.ntl_growth_pct, y: v.built_growth_pct, r: 4})),
+      backgroundColor: DRIVER_COLORS[driver] + 'BB',
+      pointRadius: 5,
+    }))
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { title: {display:true, text:'NTL Growth %', font:{size:10}}, grid:{color:'#F1F5F9'} },
+      y: { title: {display:true, text:'Built-Up Growth %', font:{size:10}}, grid:{color:'#F1F5F9'} }
+    }
+  }
+});
+
+// ── Table ──────────────────────────────────────────────────────────────────
+let currentFilter = 'all';
+let searchQuery = '';
+
+function rankBadge(r) {
+  const cls = r===1?'rank-gold':r<=3?'rank-silver':r<=10?'rank-bronze':'rank-normal';
+  return `<span class="rank-badge ${cls}">${r}</span>`;
+}
+
+function driverTag(d) {
+  const color = DRIVER_COLORS[d] || '#94A3B8';
+  const icons = {'NTL-Led (Electrification)':'⚡','Construction Boom':'🏗','Road-Driven':'🛣','Agricultural Growth':'🌾'};
+  return `<span class="driver-tag" style="background:${color}22;color:${color}">${icons[d]||''} ${d}</span>`;
+}
+
+function scoreBar(v) {
+  return `<div class="score-bar-wrap">
+    <div class="score-bar"><div class="score-bar-fill" style="width:${v}%"></div></div>
+    <span style="font-size:0.78rem;font-weight:600;color:#1E40AF">${v.toFixed(1)}</span>
+  </div>`;
+}
+
+function renderTable() {
+  const query = searchQuery.toLowerCase();
+  const filtered = VILLAGES.filter(v => {
+    const matchDriver = currentFilter === 'all' || v.primary_growth_driver === currentFilter;
+    const matchSearch = !query || v.state.toLowerCase().includes(query) ||
+      v.village_id.toLowerCase().includes(query) ||
+      v.primary_growth_driver.toLowerCase().includes(query);
+    return matchDriver && matchSearch;
+  });
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = filtered.map(v => `
+    <tr onclick="showDetail(VILLAGES[${v.rank-1}])" data-id="${v.village_id}">
+      <td>${rankBadge(v.rank)}</td>
+      <td style="font-family:monospace">${v.village_id}</td>
+      <td>${v.state}</td>
+      <td>${scoreBar(v.growth_score)}</td>
+      <td style="color:#F59E0B;font-weight:600">+${v.ntl_growth_pct.toFixed(0)}%</td>
+      <td style="color:#EF4444;font-weight:600">+${v.built_growth_pct.toFixed(0)}%</td>
+      <td style="color:#22C55E;font-weight:600">+${(v.ndvi_trend*100).toFixed(2)}</td>
+      <td>${v.road_connected ? '✓ '+v.road_type_label : '✗'}</td>
+      <td>${driverTag(v.primary_growth_driver)}</td>
+    </tr>`).join('');
+}
+
+function filterDriver(driver, btn) {
+  currentFilter = driver;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTable();
+}
+
+document.getElementById('searchBox').addEventListener('input', e => {
+  searchQuery = e.target.value;
+  renderTable();
+});
+
+// ── Detail Panel ──────────────────────────────────────────────────────────
+function showDetail(v) {
+  const panel = document.getElementById('detailPanel');
+  panel.classList.add('visible');
+  const signals = [
+    ['NTL Growth (Lights)', v.ntl_norm, '#F59E0B'],
+    ['Built-Up Expansion', v.builtup_norm, '#EF4444'],
+    ['Agricultural Productivity', v.ndvi_norm, '#22C55E'],
+    ['Road Connectivity', v.road_norm, '#3B82F6'],
+    ['Digital Integration', v.digital_norm, '#8B5CF6'],
+  ];
+  document.getElementById('detailContent').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem">
+      <div>
+        <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:.3rem">Village Detail</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:1.5rem">#${v.rank} &nbsp; ${v.village_id}</div>
+        <div style="color:var(--muted);margin-top:.2rem">${v.state} · Pop. ${v.population.toLocaleString()}</div>
+      </div>
+      <div style="text-align:right">
+        ${driverTag(v.primary_growth_driver)}
+        <div style="font-family:'DM Serif Display',serif;font-size:2rem;color:#1D4ED8;margin-top:.4rem">${v.growth_score.toFixed(1)}</div>
+        <div style="font-size:.72rem;color:var(--muted)">Growth Score (0–100)</div>
+      </div>
+    </div>
+    <div class="detail-grid" style="margin-top:1.25rem">
+      <div class="detail-item"><label>NTL 2019→2024</label><div class="val">${v.ntl_2019.toFixed(1)} → ${v.ntl_2024.toFixed(1)} nW</div></div>
+      <div class="detail-item"><label>Built-Up Growth</label><div class="val" style="color:#EF4444">+${v.built_growth_pct.toFixed(0)}%</div></div>
+      <div class="detail-item"><label>NDVI 2019→2024</label><div class="val" style="color:#22C55E">${v.ndvi_2019.toFixed(2)} → ${v.ndvi_2024.toFixed(2)}</div></div>
+      <div class="detail-item"><label>Road Status</label><div class="val">${v.road_connected ? '✓ '+v.road_type_label : '✗ Unconnected'}</div></div>
+      <div class="detail-item"><label>Distance to Town</label><div class="val">${v.dist_to_town_km} km</div></div>
+      <div class="detail-item"><label>Antyodaya Score</label><div class="val">${v.antyodaya_score} (lower=better)</div></div>
+    </div>
+    <div class="signal-bars">
+      ${signals.map(([label,val,color])=>`
+        <div class="sig-row">
+          <span class="sig-label">${label}</span>
+          <div class="sig-bar"><div class="sig-fill" style="width:${(val*100).toFixed(0)}%;background:${color}"></div></div>
+          <span class="sig-pct">${(val*100).toFixed(0)}%</span>
+        </div>`).join('')}
+    </div>
+    <button onclick="document.getElementById('detailPanel').classList.remove('visible')"
+      style="margin-top:1rem;padding:.35rem .9rem;border-radius:6px;border:1px solid var(--border);
+             background:white;cursor:pointer;font-family:inherit;color:var(--muted);font-size:.8rem">
+      ✕ Close detail
+    </button>
+  `;
+  // Highlight on map
+  if (markers[v.village_id]) markers[v.village_id].openTooltip();
+  panel.scrollIntoView({behavior:'smooth', block:'nearest'});
+  // Highlight row
+  document.querySelectorAll('#tableBody tr').forEach(r=>r.classList.remove('selected'));
+  const row = document.querySelector(`#tableBody tr[data-id="${v.village_id}"]`);
+  if (row) row.classList.add('selected');
+}
+
+renderTable();
+</script>
+</body>
+</html>
