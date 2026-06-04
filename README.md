@@ -1,5 +1,4 @@
 # Village Economic Growth Intelligence
-## Kritter Software Technologies — Candidate Assignment
 
 ---
 
