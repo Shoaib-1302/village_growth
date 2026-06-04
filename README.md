@@ -135,5 +135,3 @@ Then converted to **percentile rank (0–100)** across all villages analysed.
 4. **Fixed weights**: 30/25/15/15/15 weights are expert-defined. ML calibration against ground-truth would improve precision.
 
 ---
-
-*Assignment submitted for Kritter Software Technologies · Village Economic Growth Intelligence*
